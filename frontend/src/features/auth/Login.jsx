@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react"
 import axios from "axios"
 import Swal from "sweetalert2"
 import { InputAdornment, TextField, Box, Typography } from "@mui/material"
-import { makeStyles } from "@mui/styles"  // ✅ Nuevo (compatible)
-import { useNavigate } from "react-router-dom"   // ✅ CAMBIO: useHistory → useNavigate
+import { styled } from "@mui/material/styles"
+import { useNavigate } from "react-router-dom"
 import {
-  Mail, Lock, Eye, EyeOff, User, Phone,
-  FileText, Key, ChevronLeft, LogIn, UserPlus, HelpCircle,
+  Mail, Lock, Eye, EyeOff,
+  Key, ChevronLeft, LogIn, HelpCircle,
 } from "lucide-react"
 
 // ─── API endpoints ──────────────────────────────────────────────
@@ -84,44 +84,43 @@ const SW = {
   buttonsStyling: false,
 }
 
-// ─── makeStyles ─────────────────────────────────────────────────
-const useStyles = makeStyles(() => ({
-  field: {
-    marginBottom: "4px !important",
-    "& .MuiOutlinedInput-root": {
-      borderRadius: "12px !important",
-      fontFamily:   "'Plus Jakarta Sans',sans-serif !important",
-      fontSize:     ".87rem",
-      color:        `${T.t1} !important`,
-      backgroundColor: "rgba(255,255,255,.04) !important",
-      transition:   "background-color .2s",
-      "&:hover":    { backgroundColor: "rgba(255,255,255,.06) !important" },
-      "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,107,43,.45)" },
-      "&.Mui-focused": { backgroundColor: "rgba(255,107,43,.08) !important" },
-      "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: T.o1, borderWidth: 2 },
-      "&.Mui-error .MuiOutlinedInput-notchedOutline":   { borderColor: "rgba(232,50,26,.55) !important" },
-    },
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor:     "rgba(255,255,255,.10) !important",
-      backgroundColor: "transparent !important",
-    },
-    "& .MuiInputBase-input": {
-      color:           `${T.t1} !important`,
-      backgroundColor: "transparent !important",
-      "&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus": {
-        WebkitBoxShadow:    "0 0 0px 1000px rgba(18,9,10,1) inset !important",
-        WebkitTextFillColor:`${T.t1} !important`,
-        caretColor:         `${T.t1} !important`,
-        transition:         "background-color 99999s ease-in-out 0s",
-      },
-    },
-    "& .MuiInputLabel-outlined":             { fontFamily:"'Plus Jakarta Sans',sans-serif", color:T.t3, fontSize:".85rem" },
-    "& .MuiInputLabel-outlined.Mui-focused": { color: T.o1 },
-    "& .MuiInputLabel-outlined.Mui-error":   { color: "rgba(232,50,26,.65) !important" },
-    "& .MuiFormHelperText-root":             { display: "none !important" },
+// ─── Styled components ─────────────────────────────────────────
+const StyledTextField = styled(TextField)(() => ({
+  marginBottom: "4px !important",
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "12px !important",
+    fontFamily:   "'Plus Jakarta Sans',sans-serif !important",
+    fontSize:     ".87rem",
+    color:        `${T.t1} !important`,
+    backgroundColor: "rgba(255,255,255,.04) !important",
+    transition:   "background-color .2s",
+    "&:hover":    { backgroundColor: "rgba(255,255,255,.06) !important" },
+    "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,107,43,.45)" },
+    "&.Mui-focused": { backgroundColor: "rgba(255,107,43,.08) !important" },
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: T.o1, borderWidth: 2 },
+    "&.Mui-error .MuiOutlinedInput-notchedOutline":   { borderColor: "rgba(232,50,26,.55) !important" },
   },
-  row2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor:     "rgba(255,255,255,.10) !important",
+    backgroundColor: "transparent !important",
+  },
+  "& .MuiInputBase-input": {
+    color:           `${T.t1} !important`,
+    backgroundColor: "transparent !important",
+    "&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus": {
+      WebkitBoxShadow:    "0 0 0px 1000px rgba(18,9,10,1) inset !important",
+      WebkitTextFillColor:`${T.t1} !important`,
+      caretColor:         `${T.t1} !important`,
+      transition:         "background-color 99999s ease-in-out 0s",
+    },
+  },
+  "& .MuiInputLabel-outlined":             { fontFamily:"'Plus Jakarta Sans',sans-serif", color:T.t3, fontSize:".85rem" },
+  "& .MuiInputLabel-outlined.Mui-focused": { color: T.o1 },
+  "& .MuiInputLabel-outlined.Mui-error":   { color: "rgba(232,50,26,.65) !important" },
+  "& .MuiFormHelperText-root":             { display: "none !important" },
 }))
+
+const row2Sx = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }
 
 // ─── Validaciones ───────────────────────────────────────────────
 const vEmail = (v) => {
@@ -227,7 +226,9 @@ const SubmitBtn = ({ children, bg, shadow, loading }) => (
     style={{ width:"100%", padding:"13px 0", background:bg||T.go, color:"#fff", border:"none", borderRadius:50, cursor:"pointer", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:".90rem", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:shadow||`0 8px 26px rgba(255,107,43,.40)`, transition:"all .22s", opacity:loading?.65:1, marginTop:8 }}
     onMouseEnter={e=>{ if(!loading) e.currentTarget.style.transform="translateY(-2px)" }}
     onMouseLeave={e=>{ e.currentTarget.style.transform="translateY(0)" }}>
-    {loading ? <><Spin/> Procesando…</> : children}
+    <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+      {loading ? <><Spin/><span>Procesando…</span></> : children}
+    </span>
   </button>
 )
 
@@ -242,9 +243,9 @@ const TLink = ({ children, onClick }) => (
 
 // ─── Vistas ─────────────────────────────────────────────────────
 
-const LoginView = ({ cls, lf, le, ge, sp, setSp, onLChange, onLogin, setView, setFok, setFer, loading }) => (
+const LoginView = ({ lf, le, ge, sp, setSp, onLChange, onLogin, setView, setFok, setFer, loading }) => (
   <form onSubmit={onLogin} style={{ animation:"sa-viewIn .4s cubic-bezier(.22,1,.36,1)" }} noValidate>
-    <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
+    <StyledTextField fullWidth variant="outlined" margin="dense"
       name="email" label="Correo electrónico" type="email" value={lf.email}
       onChange={onLChange} error={!!le.email} autoFocus
       inputProps={{ maxLength:60 }}
@@ -252,7 +253,7 @@ const LoginView = ({ cls, lf, le, ge, sp, setSp, onLChange, onLogin, setView, se
     />
     <ErrHint msg={le.email}/>
 
-    <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
+    <StyledTextField fullWidth variant="outlined" margin="dense"
       name="password" label="Contraseña" type={sp?"text":"password"} value={lf.password}
       onChange={onLChange} error={!!le.password}
       inputProps={{ maxLength:50 }}
@@ -270,102 +271,22 @@ const LoginView = ({ cls, lf, le, ge, sp, setSp, onLChange, onLogin, setView, se
     <ErrHint msg={le.password}/>
     <GlobalErr msg={ge}/>
 
-    <SubmitBtn loading={loading}><LogIn size={17} strokeWidth={2.2}/> Ingresar</SubmitBtn>
+    <SubmitBtn loading={loading}><LogIn size={17} strokeWidth={2.2}/><span>Ingresar</span></SubmitBtn>
 
     <div style={{ display:"flex", justifyContent:"center", alignItems:"center", gap:4, flexWrap:"wrap", marginTop:16 }}>
       <TLink onClick={()=>{ setView("forgot"); setFok(""); setFer("") }}>
         <HelpCircle size={13} strokeWidth={2.2}/> ¿Olvidaste tu contraseña?
       </TLink>
-      <span style={{ color:"rgba(255,255,255,.18)", fontSize:".7rem" }}>·</span>
-      <TLink onClick={()=>setView("register")}>
-        <UserPlus size={13} strokeWidth={2.2}/> Crear cuenta
-      </TLink>
     </div>
   </form>
 )
 
-const RegisterView = ({ cls, rf, re, srp, setSrp, onRChange, onRegister, loading }) => (
-  <form onSubmit={onRegister} style={{ animation:"sa-viewIn .4s cubic-bezier(.22,1,.36,1)" }} noValidate>
-    <SecLabel icon={<User size={10} color={T.o1} strokeWidth={2.5}/>} iconBg="rgba(255,107,43,.15)">Información Personal</SecLabel>
-    <Box className={cls.row2}>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="nombre" label="Nombre completo" value={rf.nombre} onChange={onRChange} error={!!re.nombre}
-          inputProps={{ maxLength:40 }}
-          InputProps={{ startAdornment:<InputAdornment position="start"><User size={16} color={T.t3} strokeWidth={2}/></InputAdornment> }}
-        />
-        <ErrHint msg={re.nombre}/>
-      </div>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="documento" label="Documento" value={rf.documento} onChange={onRChange} error={!!re.documento}
-          inputProps={{ maxLength:15 }}
-          InputProps={{ startAdornment:<InputAdornment position="start"><FileText size={16} color={T.t3} strokeWidth={2}/></InputAdornment> }}
-        />
-        <ErrHint msg={re.documento}/>
-      </div>
-    </Box>
-
-    <SecLabel icon={<Phone size={10} color={T.o2} strokeWidth={2.5}/>} iconBg="rgba(255,154,60,.12)">Contacto</SecLabel>
-    <Box className={cls.row2}>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="telefono" label="Teléfono" value={rf.telefono} onChange={onRChange} error={!!re.telefono}
-          inputProps={{ maxLength:10 }}
-          InputProps={{ startAdornment:<InputAdornment position="start"><Phone size={16} color={T.t3} strokeWidth={2}/></InputAdornment> }}
-        />
-        <ErrHint msg={re.telefono}/>
-      </div>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="email" label="Correo electrónico" type="email" value={rf.email} onChange={onRChange} error={!!re.email}
-          inputProps={{ maxLength:60 }}
-          InputProps={{ startAdornment:<InputAdornment position="start"><Mail size={16} color={T.t3} strokeWidth={2}/></InputAdornment> }}
-        />
-        <ErrHint msg={re.email}/>
-      </div>
-    </Box>
-
-    <SecLabel icon={<Key size={10} color={T.r1} strokeWidth={2.5}/>} iconBg="rgba(232,50,26,.10)">Seguridad</SecLabel>
-    <Box className={cls.row2}>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="password" label="Contraseña" type={srp?"text":"password"} value={rf.password} onChange={onRChange} error={!!re.password}
-          inputProps={{ maxLength:15 }}
-          InputProps={{
-            startAdornment:<InputAdornment position="start"><Lock size={16} color={T.t3} strokeWidth={2}/></InputAdornment>,
-            endAdornment:(
-              <InputAdornment position="end">
-                <button type="button" onClick={()=>setSrp(p=>!p)} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", padding:4, borderRadius:8, color:T.t3 }}>
-                  {srp?<EyeOff size={16} strokeWidth={2}/>:<Eye size={16} strokeWidth={2}/>}
-                </button>
-              </InputAdornment>
-            ),
-          }}
-        />
-        <PwBar val={rf.password}/>
-        <ErrHint msg={re.password}/>
-      </div>
-      <div>
-        <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
-          name="confirm" label="Confirmar" type={srp?"text":"password"} value={rf.confirm} onChange={onRChange} error={!!re.confirm}
-          inputProps={{ maxLength:15 }}
-          InputProps={{ startAdornment:<InputAdornment position="start"><Lock size={16} color={T.t3} strokeWidth={2}/></InputAdornment> }}
-        />
-        <ErrHint msg={re.confirm}/>
-      </div>
-    </Box>
-
-    <SubmitBtn loading={loading} bg={T.go}><UserPlus size={16} strokeWidth={2.2}/> Crear Cuenta</SubmitBtn>
-  </form>
-)
-
-const ForgotView = ({ cls, fe, setFe, fer, setFer, fok, onForgot, loading }) => (
+const ForgotView = ({ fe, setFe, fer, setFer, fok, onForgot, loading }) => (
   <form onSubmit={onForgot} style={{ animation:"sa-viewIn .4s cubic-bezier(.22,1,.36,1)" }} noValidate>
     <Typography style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:".85rem", color:"rgba(255,248,240,.38)", marginBottom:14, lineHeight:1.65 }}>
       Ingresa tu correo y te enviaremos instrucciones para restablecer tu contraseña.
     </Typography>
-    <TextField className={cls.field} fullWidth variant="outlined" margin="dense"
+    <StyledTextField fullWidth variant="outlined" margin="dense"
       name="forgotEmail" label="Correo electrónico" type="email" value={fe} autoFocus
       onChange={e=>{ setFe(e.target.value); setFer("") }} error={!!fer}
       inputProps={{ maxLength:60 }}
@@ -374,7 +295,7 @@ const ForgotView = ({ cls, fe, setFe, fer, setFer, fok, onForgot, loading }) => 
     <ErrHint msg={fer}/>
     <SuccessBox msg={fok}/>
     <SubmitBtn loading={loading} bg={T.gy} shadow="0 8px 24px rgba(255,154,60,.35)">
-      <Mail size={16} strokeWidth={2.2}/> Enviar instrucciones
+      <Mail size={16} strokeWidth={2.2}/><span>Enviar instrucciones</span>
     </SubmitBtn>
   </form>
 )
@@ -417,11 +338,14 @@ function CanvasBg() {
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────
 export default function Login() {
-  const cls     = useStyles()
   const navigate = useNavigate()   // ✅ CAMBIO: useHistory() → useNavigate()
   const cardRef = useRef(null)
   const [view,    setView]    = useState("login")
   const [loading, setLoading] = useState(false)
+  const [lf,  setLf]  = useState({ email: "", password: "" })
+  const [le,  setLe]  = useState({ email: "", password: "" })
+  const [ge,  setGe]  = useState("")
+  const [sp,  setSp]  = useState(false)
 
   // Redirigir si ya hay sesión
   useEffect(() => {
@@ -455,12 +379,6 @@ export default function Login() {
     return () => { cancelAnimationFrame(raf); document.removeEventListener("mousemove",onMove); document.removeEventListener("mouseleave",onLeave) }
   }, [])
 
-  // ── Estado LOGIN ──
-  const [lf, setLf] = useState({ email:"", password:"" })
-  const [le, setLe] = useState({ email:"", password:"" })
-  const [sp, setSp] = useState(false)
-  const [ge, setGe] = useState("")
-
   const onLChange = e => {
     const { name, value } = e.target
     setLf(p=>({...p,[name]:value})); setGe("")
@@ -475,44 +393,11 @@ export default function Login() {
       const res = await axios.post(EP.login, { email:lf.email, password:lf.password })
       localStorage.setItem("token",   res.data.token)
       localStorage.setItem("usuario", JSON.stringify(res.data.usuario))
-      navigate("/dashboard", { replace: true })  // ✅ CAMBIO: history.replace → navigate(..., { replace: true })
+      navigate("/dashboard", { replace: true })
     } catch (err) {
-      setGe(err.response?.data?.msg || err.response?.data?.message || "Credenciales incorrectas")
-    } finally { setLoading(false) }
-  }
-
-  // ── Estado REGISTER ──
-  const [rf,  setRf]  = useState({ nombre:"", documento:"", email:"", telefono:"", password:"", confirm:"" })
-  const [re,  setRe]  = useState({})
-  const [srp, setSrp] = useState(false)
-
-  const onRChange = e => {
-    const { name, value } = e.target
-    if (name==="nombre"    && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/.test(value)) return
-    if ((name==="documento"||name==="telefono") && !/^[0-9]*$/.test(value)) return
-    setRf(p=>({...p,[name]:value}))
-    const errMap = {
-      nombre:vNombre, documento:vDoc, email:vEmail, telefono:vTel, password:vPass,
-      confirm: v => v!==rf.password ? "Las contraseñas no coinciden" : "",
-    }
-    if (errMap[name]) setRe(p=>({...p,[name]:errMap[name](value)}))
-  }
-  const onRegister = async e => {
-    e.preventDefault()
-    const errs = {
-      nombre:vNombre(rf.nombre), documento:vDoc(rf.documento), email:vEmail(rf.email),
-      telefono:vTel(rf.telefono), password:vPass(rf.password),
-      confirm: rf.confirm!==rf.password ? "Las contraseñas no coinciden" : "",
-    }
-    setRe(errs); if(Object.values(errs).some(x=>x)) return
-    setLoading(true)
-    try {
-      await axios.post(EP.register, { nombre:rf.nombre, documento:rf.documento, email:rf.email, telefono:rf.telefono, password:rf.password })
-      Swal.fire({...SW, icon:"success", title:"¡Cuenta creada!", text:"Ya puedes iniciar sesión.", timer:2200, timerProgressBar:true, showConfirmButton:false})
-      setRf({nombre:"",documento:"",email:"",telefono:"",password:"",confirm:""})
-      setView("login")
-    } catch (err) {
-      Swal.fire({...SW, icon:"error", title:"Error al registrar", text:err.response?.data?.msg||"Inténtalo de nuevo."})
+      const msg = err.response?.data?.msg || err.response?.data?.message || "Credenciales incorrectas"
+      setGe(msg)
+      Swal.fire({ ...SW, icon:"error", title:"Acceso denegado", text:msg, timer:3500, timerProgressBar:true, showConfirmButton:false })
     } finally { setLoading(false) }
   }
 
@@ -536,9 +421,8 @@ export default function Login() {
 
   // ── Meta por vista ──
   const META = {
-    login:    { icon:<LogIn    size={22} color="#fff" strokeWidth={2.2}/>, title:"Bienvenido",      sub:"Inicia sesión en SurtiAntojos",  hBg:T.gr },
-    register: { icon:<UserPlus size={22} color="#fff" strokeWidth={2.2}/>, title:"Crear cuenta",    sub:"Regístrate como nuevo cliente",  hBg:T.go },
-    forgot:   { icon:<Key      size={22} color="#fff" strokeWidth={2.2}/>, title:"Recuperar acceso",sub:"Te ayudamos a volver",           hBg:T.gy },
+    login:  { icon:<LogIn size={22} color="#fff" strokeWidth={2.2}/>, title:"Bienvenido",       sub:"Inicia sesión en SurtiAntojos", hBg:T.gr },
+    forgot: { icon:<Key   size={22} color="#fff" strokeWidth={2.2}/>, title:"Recuperar acceso", sub:"Te ayudamos a volver",          hBg:T.gy },
   }
   const m = META[view]
 
@@ -637,9 +521,8 @@ export default function Login() {
 
           {/* Body */}
           <Box style={{ padding:"20px 26px 24px" }}>
-            {view==="login"    && <LoginView    cls={cls} lf={lf} le={le} ge={ge} sp={sp} setSp={setSp} onLChange={onLChange} onLogin={onLogin} setView={setView} setFok={setFok} setFer={setFer} loading={loading}/>}
-            {view==="register" && <RegisterView cls={cls} rf={rf} re={re} srp={srp} setSrp={setSrp} onRChange={onRChange} onRegister={onRegister} loading={loading}/>}
-            {view==="forgot"   && <ForgotView   cls={cls} fe={fe} setFe={setFe} fer={fer} setFer={setFer} fok={fok} onForgot={onForgot} loading={loading}/>}
+            {view==="login"  && <LoginView  lf={lf} le={le} ge={ge} sp={sp} setSp={setSp} onLChange={onLChange} onLogin={onLogin} setView={setView} setFok={setFok} setFer={setFer} loading={loading}/>}
+            {view==="forgot" && <ForgotView fe={fe} setFe={setFe} fer={fer} setFer={setFer} fok={fok} onForgot={onForgot} loading={loading}/>}
 
             <Box style={{ display:"flex", justifyContent:"center", marginTop:16 }}>
               <button type="button" onClick={()=>navigate("/")}   

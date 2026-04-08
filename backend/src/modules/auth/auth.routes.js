@@ -1,27 +1,24 @@
-const express = require("express")
-const router = express.Router()
-const {
-  register,
+import { Router } from 'express'
+import {
   login,
   forgotPassword,
   resetPassword,
   getUsuario,
   adminResetPassword,
   verificarEstadoRol,
-} = require("./auth.controller")
-const authMiddleware = require("../../middlewares/authMiddleware")
+} from './auth.controller.js'
+import authMiddleware from '../../middlewares/authMiddleware.js'
 
-// ─── Rutas públicas ─────────────────────────────────────────────
-router.post("/register", register)
-router.post("/login", login)
-router.post("/forgot-password", forgotPassword)
-router.post("/reset-password", resetPassword)
+const router = Router()
 
-// ─── Rutas protegidas ──────────────────────────────────────────
-router.get("/me", authMiddleware, getUsuario)
-router.get("/verificar-rol", authMiddleware, verificarEstadoRol)
+// Rutas públicas
+router.post('/login', login)
+router.post('/forgot-password', forgotPassword)
+router.post('/reset-password', resetPassword)
 
-// ─── Ruta solo para administradores ───────────────────────────
-router.post("/admin-reset-password", authMiddleware, adminResetPassword)
+// Rutas protegidas
+router.get('/me', authMiddleware, getUsuario)
+router.get('/verificar-rol', authMiddleware, verificarEstadoRol)
+router.post('/admin-reset-password', authMiddleware, adminResetPassword)
 
-module.exports = router
+export default router

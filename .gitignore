@@ -1,0 +1,61 @@
+# =========================
+# Dependencias
+# =========================
+node_modules/
+package-lock.json
+
+# =========================
+# Variables de entorno
+# =========================
+.env
+.env.*
+*.local
+
+# =========================
+# Build / Producción
+# =========================
+dist/
+dist-ssr/
+build/
+.out/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# IDE / Editores
+# =========================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================
+# Testing / Coverage
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Misc
+# =========================
+.cache/
+.tmp/
+.temp/
