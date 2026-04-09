@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import axios from "axios"
 import Swal from "sweetalert2"
 import Chart from "chart.js/auto"
+import { RolesList } from "../roles"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, FileText,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
@@ -1080,7 +1081,7 @@ export default function Dashboard() {
       case "categorias": return placeholder("categorias")
       case "pedidos":    return placeholder("pedidos")
       case "reportes":   return placeholder("reportes")
-      case "roles":      return placeholder("roles")
+      case "roles":      return <RolesList />
       case "usuarios":   return placeholder("usuarios")
       default:           return renderDashboard()
     }
