@@ -6,6 +6,7 @@ import categoriaRoutes from './modules/categorias/categoria.routes.js'
 import pedidoRoutes from './modules/pedidos/pedido.routes.js'
 import usuarioRoutes from './modules/usuarios/usuario.routes.js'
 import rolRoutes from './modules/roles/rol.routes.js'
+import ventaRoutes from './modules/ventas/venta.routes.js'
 
 const app = express()
 
@@ -20,6 +21,7 @@ app.use('/api/categorias', categoriaRoutes)
 app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/usuarios', usuarioRoutes)
 app.use('/api/roles', rolRoutes)
+app.use('/api/ventas', ventaRoutes)
 
 // Ruta de prueba
 app.get('/', (req, res) => {
