@@ -6,6 +6,7 @@ import Chart from "chart.js/auto"
 import { RolesList } from "../roles"
 import { CategoriasList } from "../categorias"
 import { UsuariosList } from "../usuarios"
+import { ProductosList } from "../productos"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, FileText,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
@@ -1158,7 +1159,7 @@ export default function Dashboard() {
 
     switch (selectedModule) {
       case "dashboard":  return renderDashboard()
-      case "productos":  return placeholder("productos")
+      case "productos":  return <ProductosList />
       case "categorias": return <CategoriasList />
       case "pedidos":    return placeholder("pedidos")
       case "reportes":   return placeholder("reportes")
