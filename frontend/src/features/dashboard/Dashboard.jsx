@@ -1159,21 +1159,11 @@ export default function Dashboard() {
     switch (selectedModule) {
       case "dashboard":  return renderDashboard()
       case "productos":  return placeholder("productos")
-<<<<<<< HEAD
       case "categorias": return <CategoriasList />
       case "pedidos":    return placeholder("pedidos")
       case "reportes":   return placeholder("reportes")
       case "roles":      return <RolesList />
-      case "usuarios":   return placeholder("usuarios")
-=======
-      case "categorias": return placeholder("categorias")
-      case "pedidos":        return placeholder("pedidos")
-      case "clientes":       return placeholder("clientes")
-      case "ventas":         return placeholder("ventas")
-      case "detallesVentas": return placeholder("detallesVentas")
-      case "roles":          return <RolesList />
       case "usuarios":   return <UsuariosList />
->>>>>>> f3c510e79de92b1964d5aa613cf002c256aad0c6
       default:           return renderDashboard()
     }
   }
