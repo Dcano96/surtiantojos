@@ -4,6 +4,7 @@ import axios from "axios"
 import Swal from "sweetalert2"
 import Chart from "chart.js/auto"
 import { RolesList } from "../roles"
+import { CategoriasList } from "../categorias"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, FileText,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
@@ -1078,7 +1079,7 @@ export default function Dashboard() {
     switch (selectedModule) {
       case "dashboard":  return renderDashboard()
       case "productos":  return placeholder("productos")
-      case "categorias": return placeholder("categorias")
+      case "categorias": return <CategoriasList />
       case "pedidos":    return placeholder("pedidos")
       case "reportes":   return placeholder("reportes")
       case "roles":      return <RolesList />
