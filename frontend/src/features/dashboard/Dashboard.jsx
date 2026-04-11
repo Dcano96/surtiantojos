@@ -5,11 +5,12 @@ import Swal from "sweetalert2"
 import Chart from "chart.js/auto"
 import { RolesList } from "../roles"
 import { CategoriasList } from "../categorias"
+import { UsuariosList } from "../usuarios"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, FileText,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
   X, Menu, Bell, Search, TrendingUp, AlertCircle,
-  ChevronDown, User, ShoppingBag, BarChart2,
+  ChevronDown, User, ShoppingBag, BarChart2, DollarSign, UserCheck,
 } from "lucide-react"
 
 // ─── API base ──────────────────────────────────────────────────
@@ -588,7 +589,9 @@ const MOD_LABELS = {
   productos: "Productos",
   categorias: "Categorías",
   pedidos: "Pedidos",
-  reportes: "Reportes",
+  ventas: "Ventas",
+  detallesVentas: "Detalles de Ventas",
+  clientes: "Clientes",
   roles: "Roles",
   usuarios: "Usuarios",
 }
@@ -605,6 +608,14 @@ const NAV = [
       { id:"productos",  label:"Productos",   icon:Package       },
       { id:"categorias", label:"Categorías",  icon:Tag           },
       { id:"pedidos",    label:"Pedidos",     icon:ShoppingCart  },
+      { id:"clientes",   label:"Clientes",    icon:UserCheck     },
+    ],
+  },
+  {
+    sec: "Ventas",
+    items: [
+      { id:"ventas",         label:"Ventas",            icon:DollarSign },
+      { id:"detallesVentas", label:"Detalles de Ventas", icon:FileText   },
     ],
   },
   {
@@ -612,7 +623,6 @@ const NAV = [
     items: [
       { id:"usuarios",  label:"Usuarios",  icon:Users  },
       { id:"roles",     label:"Roles",     icon:Shield },
-      { id:"reportes",  label:"Reportes",  icon:FileText },
     ],
   },
 ]
@@ -684,6 +694,28 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem("sa-mod", selectedModule)
   }, [selectedModule])
+
+  // ── Redirigir al primer módulo accesible si el actual no tiene permiso ──
+  useEffect(() => {
+    if (!user) return
+    const isAdm = user.rol?.toLowerCase() === "administrador"
+    if (isAdm) return
+    const permisos = user.permisos || []
+    const canMod = (mod) => {
+      if (mod === "dashboard") {
+        const p = permisos.find(p => p.modulo === "dashboard")
+        return p ? !!p.acciones?.leer : false
+      }
+      const p = permisos.find(p => p.modulo === mod)
+      return p ? Object.values(p.acciones || {}).some(v => v) : false
+    }
+    if (!canMod(selectedModule)) {
+      const allMods = NAV.flatMap(g => g.items.map(i => i.id))
+      const first = allMods.find(m => canMod(m))
+      if (first) setSelectedModule(first)
+      else setSelectedModule("__no_access__")
+    }
+  }, [user])
 
   // ── Cerrar dropdown al click fuera ──
   useEffect(() => {
@@ -902,6 +934,18 @@ export default function Dashboard() {
       })
   }
 
+  // ── Permisos ──
+  const isAdmin = user?.rol?.toLowerCase() === "administrador"
+  const canAccess = (modulo) => {
+    if (isAdmin) return true
+    if (modulo === "dashboard") {
+      const p = (user?.permisos || []).find(p => p.modulo === "dashboard")
+      return p ? p.acciones?.leer : false
+    }
+    const perm = (user?.permisos || []).find(p => p.modulo === modulo)
+    return perm ? Object.values(perm.acciones || {}).some(v => v) : false
+  }
+
   const selectMod = (id) => { setSelectedModule(id); setMobileOpen(false) }
 
   const renderDashboard = () => {
@@ -1066,6 +1110,37 @@ export default function Dashboard() {
     )
   }
 
+  // ── Pantalla sin acceso ──
+  const noAccess = (mod) => {
+    const hasAny = NAV.flatMap(g => g.items.map(i => i.id)).some(m => canAccess(m))
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:400, gap:16, textAlign:"center" }}>
+        <div style={{ width:80, height:80, borderRadius:"50%", background:"rgba(239,68,68,0.08)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <AlertCircle size={36} color="#EF4444"/>
+        </div>
+        <div style={{ fontFamily:"var(--font-h)", fontSize:20, fontWeight:800, color:"var(--t1)" }}>Acceso denegado</div>
+        <div style={{ fontSize:14, color:"var(--t3)", maxWidth:360, lineHeight:1.6 }}>
+          {mod === "__no_access__"
+            ? <>No tienes permisos para acceder a ningún módulo.<br/>Contacta al administrador para solicitar acceso.</>
+            : <>No tienes permisos para acceder al módulo <strong>{MOD_LABELS[mod] || mod}</strong>.<br/>Contacta al administrador para solicitar acceso.</>
+          }
+        </div>
+        {hasAny && mod !== "__no_access__" && (
+          <button onClick={() => {
+            const allMods = NAV.flatMap(g => g.items.map(i => i.id))
+            const first = allMods.find(m => canAccess(m))
+            if (first) selectMod(first)
+          }} style={{
+            marginTop:8, padding:"10px 24px", borderRadius:14, border:"none", cursor:"pointer",
+            background:"linear-gradient(135deg,#FF6B35,#FF3D00)", color:"#fff",
+            fontFamily:"var(--font)", fontWeight:700, fontSize:14,
+            boxShadow:"0 6px 20px rgba(255,107,53,0.3)",
+          }}>Ir al módulo disponible</button>
+        )}
+      </div>
+    )
+  }
+
   // ── Render módulos ──
   const renderContent = () => {
     const placeholder = (mod) => (
@@ -1076,38 +1151,57 @@ export default function Dashboard() {
       </div>
     )
 
+    // Verificar permisos
+    if (selectedModule === "__no_access__" || !canAccess(selectedModule)) {
+      return noAccess(selectedModule)
+    }
+
     switch (selectedModule) {
       case "dashboard":  return renderDashboard()
       case "productos":  return placeholder("productos")
+<<<<<<< HEAD
       case "categorias": return <CategoriasList />
       case "pedidos":    return placeholder("pedidos")
       case "reportes":   return placeholder("reportes")
       case "roles":      return <RolesList />
       case "usuarios":   return placeholder("usuarios")
+=======
+      case "categorias": return placeholder("categorias")
+      case "pedidos":        return placeholder("pedidos")
+      case "clientes":       return placeholder("clientes")
+      case "ventas":         return placeholder("ventas")
+      case "detallesVentas": return placeholder("detallesVentas")
+      case "roles":          return <RolesList />
+      case "usuarios":   return <UsuariosList />
+>>>>>>> f3c510e79de92b1964d5aa613cf002c256aad0c6
       default:           return renderDashboard()
     }
   }
 
   // ── Nav builder ──
-  const buildNav = () => NAV.map(group => (
-    <div key={group.sec}>
-      <div className="sa-sec-lbl">{group.sec}</div>
-      {group.items.map(item => {
-        const Icon = item.icon
-        return (
-          <button
-            key={item.id}
-            className={`sa-nav-btn ${selectedModule === item.id ? "on" : ""}`}
-            onClick={() => selectMod(item.id)}
-            data-label={item.label}
-          >
-            <span className="sa-nav-ico"><Icon size={15}/></span>
-            <span className="sa-nav-txt">{item.label}</span>
-          </button>
-        )
-      })}
-    </div>
-  ))
+  const buildNav = () => NAV.map(group => {
+    const visibleItems = group.items.filter(item => canAccess(item.id))
+    if (visibleItems.length === 0) return null
+    return (
+      <div key={group.sec}>
+        <div className="sa-sec-lbl">{group.sec}</div>
+        {visibleItems.map(item => {
+          const Icon = item.icon
+          return (
+            <button
+              key={item.id}
+              className={`sa-nav-btn ${selectedModule === item.id ? "on" : ""}`}
+              onClick={() => selectMod(item.id)}
+              data-label={item.label}
+            >
+              <span className="sa-nav-ico"><Icon size={15}/></span>
+              <span className="sa-nav-txt">{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  })
 
   // ── Loading ──
   if (!user) return (

@@ -1,1075 +1,0 @@
-import { useState, useEffect } from "react"
-import {
-  Typography,
-  TextField,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogActions,
-  MenuItem,
-  Box,
-  InputAdornment,
-  FormControlLabel,
-  Divider,
-  Tabs,
-  Tab,
-  Switch,
-  Tooltip,
-} from "@mui/material"
-import {
-  Edit2, Trash2, Eye, X, Search, CheckCircle, Settings, Shield,
-  XCircle, User, Lock, PenTool, Key, ArrowLeft, ArrowRight,
-  Check as CheckIcon, AlertTriangle, ShoppingCart, ClipboardList, Tag, BarChart3,
-} from "lucide-react"
-import Swal from "sweetalert2"
-import api from "../../services/api.js"
-
-/* ������������������������������������������������������������������������������������
-   M�DULOS DISPONIBLES � contexto surtiantojos
-������������������������������������������������������������������������������������ */
-const availableModules = [
-  "dashboard", "usuarios", "roles", "categorias", "productos", "pedidos", "reportes",
-]
-
-/* ������������������������������������������������������������������������������������
-   DESIGN TOKENS � Modern SaaS
-������������������������������������������������������������������������������������ */
-const T = {
-  o1: "#FF6B35",
-  o2: "#FF3D00",
-  r1: "#EF4444",
-  y1: "#F59E0B",
-  green: "#10B981",
-  t1: "#0F172A",
-  t2: "#475569",
-  t3: "#94A3B8",
-  bg: "#F8FAFC",
-  bg2: "#FFFFFF",
-  go: "linear-gradient(135deg, #FF6B35, #FF3D00)",
-  gr: "linear-gradient(135deg, #EF4444, #DC2626)",
-  gy: "linear-gradient(135deg, #F59E0B, #D97706)",
-  border: "#E2E8F0",
-  border2: "rgba(255, 107, 53, 0.25)",
-  glass: "rgba(255, 107, 53, 0.03)",
-  sh: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
-  sh2: "0 10px 25px rgba(0,0,0,0.10)",
-  font: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-  fontH: "'Fraunces', serif",
-}
-
-const AVATAR_COLORS = [
-  "linear-gradient(135deg, #FF6B35, #FF3D00)",
-  "linear-gradient(135deg, #6366F1, #4F46E5)",
-  "linear-gradient(135deg, #10B981, #059669)",
-  "linear-gradient(135deg, #F59E0B, #D97706)",
-  "linear-gradient(135deg, #EC4899, #DB2777)",
-  "linear-gradient(135deg, #06B6D4, #0891B2)",
-]
-const avGrad = i => AVATAR_COLORS[i % AVATAR_COLORS.length]
-
-/* ������������������������������������������������������������������������������������
-   SWAL INJECT
-������������������������������������������������������������������������������������ */
-if (typeof document !== "undefined" && !document.getElementById("sa-swal")) {
-  const s = document.createElement("style"); s.id = "sa-swal"
-  s.textContent = `
-    .swal2-icon.swal2-question{border-color:#FF6B35!important;color:#FF6B35!important;}
-    .swal2-icon.swal2-warning{border-color:#FF3D00!important;color:#FF3D00!important;}
-    .swal2-icon.swal2-success{border-color:#10B981!important;color:#10B981!important;}
-    .swal2-icon.swal2-success [class^=swal2-success-line]{background:#10B981!important;}
-    .swal2-icon.swal2-success .swal2-success-ring{border-color:rgba(16,185,129,.30)!important;}
-    .swal2-icon.swal2-error{border-color:#EF4444!important;color:#EF4444!important;}
-    .swal2-icon.swal2-error [class^=swal2-x-mark-line]{background:#EF4444!important;}
-    .swal2-timer-progress-bar{background:linear-gradient(90deg,#FF6B35,#FF3D00)!important;}
-    .swal2-container{z-index:99999!important;}
-    .swal2-popup{z-index:100000!important;}
-    .swal2-backdrop-show{z-index:99998!important;background:rgba(15,23,42,.30)!important;backdrop-filter:blur(4px)!important;}
-  `
-  document.head.appendChild(s)
-}
-
-const SW  = { customClass:{ popup:"sa-dash-pop", title:"sa-dash-ttl", htmlContainer:"sa-dash-bod", confirmButton:"sa-dash-ok", cancelButton:"sa-dash-cn" }, buttonsStyling:false }
-const SWD = { ...SW }
-const SWW = { ...SW }
-
-const swalFire = (options) =>
-  Swal.fire({
-    ...options,
-    allowOutsideClick: options.showCancelButton ? true : false,
-  })
-
-/* ������������������������������������������������������������������������������������
-   REUSABLE STYLES
-������������������������������������������������������������������������������������ */
-const actionBtn = {
-  width: 34, height: 34, borderRadius: "10px", display: "flex", alignItems: "center",
-  justifyContent: "center", border: "none", cursor: "pointer", transition: "all .2s ease",
-  minWidth: "unset", p: 0,
-  "&:hover": { transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(0,0,0,.10)" },
-}
-const btnEdit = { ...actionBtn, background: "rgba(16, 185, 129, 0.10)", color: T.green, "&:hover": { background: "rgba(16, 185, 129, 0.18)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(16,185,129,.20)" } }
-const btnView = { ...actionBtn, background: "rgba(255, 107, 53, 0.10)", color: T.o1, "&:hover": { background: "rgba(255, 107, 53, 0.18)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(255,107,53,.20)" } }
-const btnDel  = { ...actionBtn, background: "rgba(239, 68, 68, 0.08)", color: T.r1, "&:hover": { background: "rgba(239, 68, 68, 0.15)", transform: "translateY(-1px)", boxShadow: "0 4px 12px rgba(239,68,68,.20)" } }
-
-const cancelBtnSx = {
-  fontFamily: `${T.font} !important`, fontWeight: "600 !important",
-  color: `${T.t2} !important`, borderRadius: "12px !important",
-  padding: "8px 22px !important", border: `1.5px solid ${T.border} !important`,
-  textTransform: "none !important",
-  "&:hover": { background: "rgba(0,0,0,0.03) !important", borderColor: "#CBD5E1 !important" },
-}
-const submitBtnSx = {
-  display: "flex !important", alignItems: "center !important", gap: "7px !important",
-  background: `${T.go} !important`, color: "#fff !important",
-  fontFamily: `${T.font} !important`, fontWeight: "700 !important",
-  borderRadius: "12px !important", padding: "8px 24px !important",
-  textTransform: "none !important",
-  boxShadow: "0 4px 14px rgba(255,107,53,.30) !important",
-  "&:hover": { transform: "translateY(-1px)", boxShadow: "0 8px 22px rgba(255,107,53,.40) !important" },
-  "&:disabled": { background: "rgba(255,107,53,.18) !important", boxShadow: "none !important", transform: "none !important" },
-}
-
-const permBtnSelSx = {
-  display: "flex !important", alignItems: "center !important", gap: "4px !important",
-  background: `${T.go} !important`, color: "#fff !important",
-  fontFamily: `${T.font} !important`, fontWeight: "700 !important",
-  fontSize: ".70rem !important", padding: "3px 10px !important",
-  borderRadius: "50px !important", boxShadow: "0 2px 8px rgba(255,107,53,.30) !important",
-  textTransform: "uppercase",
-}
-const permBtnQuitSx = {
-  display: "flex !important", alignItems: "center !important", gap: "4px !important",
-  background: "rgba(239,68,68,.08) !important", color: "#EF4444 !important",
-  fontFamily: `${T.font} !important`, fontWeight: "700 !important",
-  fontSize: ".70rem !important", padding: "3px 10px !important",
-  borderRadius: "50px !important", border: "1px solid rgba(239,68,68,.18) !important",
-  textTransform: "uppercase",
-}
-
-const pageBtn = {
-  width: 32, height: 32, borderRadius: "8px", border: `1px solid ${T.border}`,
-  background: "#fff", color: T.t3,
-  fontFamily: T.font, fontSize: ".80rem", fontWeight: 500,
-  display: "flex", alignItems: "center", justifyContent: "center",
-  cursor: "pointer", minWidth: "unset", p: 0,
-  transition: "all .15s ease",
-  "&:hover": { background: T.go, color: "#fff", borderColor: "transparent", boxShadow: "0 2px 8px rgba(255,107,53,.30)" },
-}
-const pageBtnOn = {
-  ...pageBtn,
-  background: `${T.go} !important`, color: "#fff !important", borderColor: "transparent !important",
-  boxShadow: "0 2px 8px rgba(255,107,53,.30) !important",
-}
-
-const switchSx = {
-  "& .MuiSwitch-switchBase.Mui-checked": { color: T.o1 },
-  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: T.o2, opacity: 1 },
-  "& .MuiSwitch-track": { backgroundColor: "rgba(0,0,0,.12)", opacity: 1 },
-}
-
-/* ������������������������������������������������������������������������������������
-   COMPONENT
-������������������������������������������������������������������������������������ */
-const RolesList = () => {
-  const [roles, setRoles] = useState([])
-  const [open, setOpen] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [selectedRole, setSelectedRole] = useState(null)
-  const [formData, setFormData] = useState({ nombre: "", estado: true, permisos: [], nombrePersonalizado: "", isAdminRole: false })
-  const [searchTerm, setSearchTerm] = useState("")
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(5)
-  const [detailsOpen, setDetailsOpen] = useState(false)
-  const [tabValue, setTabValue] = useState(0)
-  const [formErrors, setFormErrors] = useState({ nombre: "", nombrePersonalizado: "", permisos: "" })
-  const [isFormValid, setIsFormValid] = useState(false)
-
-  const fetchRoles = async () => {
-    try {
-      const r = await api.get("/api/roles")
-      setRoles(Array.isArray(r.data) ? r.data : [])
-    } catch (e) {
-      console.error("Error al cargar roles:", e)
-      setRoles([])
-    }
-  }
-  useEffect(() => { fetchRoles() }, [])
-
-  const checkRoleExists = (name, excludeId = null) =>
-    roles.some(r => r.nombre.toLowerCase() === name.toLowerCase() && r._id !== excludeId)
-
-  const initializePermissions = () =>
-    availableModules.map(modulo => ({
-      modulo,
-      acciones: { crear: false, leer: modulo === "dashboard", actualizar: false, eliminar: false },
-    }))
-
-  const handleOpen = role => {
-    setFormErrors({ nombre: "", nombrePersonalizado: "", permisos: "" })
-    if (role) {
-      let permisos = (role.permisos || []).map(p =>
-        typeof p === "string"
-          ? { modulo: p, acciones: { crear: false, leer: true, actualizar: false, eliminar: false } }
-          : { modulo: p.modulo, acciones: { ...p.acciones } }
-      )
-      const existing = permisos.map(p => p.modulo)
-      availableModules.filter(m => !existing.includes(m)).forEach(m =>
-        permisos.push({ modulo: m, acciones: { crear: false, leer: false, actualizar: false, eliminar: false } })
-      )
-      const isAdmin = role.nombre.toLowerCase() === "administrador"
-      setFormData({ nombre: role.nombre, estado: isAdmin ? true : role.estado, permisos, nombrePersonalizado: "", isAdminRole: isAdmin })
-      setEditingId(role._id); setIsFormValid(true)
-    } else {
-      setFormData({ nombre: "", estado: true, permisos: initializePermissions(), nombrePersonalizado: "", isAdminRole: false })
-      setEditingId(null); setIsFormValid(false)
-    }
-    setOpen(true); setTabValue(0)
-  }
-  const handleClose = () => {
-    setOpen(false)
-    setEditingId(null)
-    setFormData({ nombre: "", estado: true, permisos: [], nombrePersonalizado: "", isAdminRole: false })
-    setFormErrors({ nombre: "", nombrePersonalizado: "", permisos: "" })
-    setTabValue(0)
-    setIsFormValid(false)
-  }
-
-  const handleDetails = role => {
-    const permisos = (role.permisos || []).map(p =>
-      typeof p === "string"
-        ? { modulo: p, acciones: { crear: false, leer: true, actualizar: false, eliminar: false } }
-        : { modulo: p.modulo, acciones: { ...p.acciones } }
-    )
-    setSelectedRole({ ...role, permisos }); setDetailsOpen(true); setTabValue(0)
-  }
-  const handleCloseDetails = () => setDetailsOpen(false)
-
-  const handleChange = e => {
-    const { name, value } = e.target
-    const parsed = name === "estado" ? value === "true" || value === true : value
-    setFormData({ ...formData, [name]: parsed })
-    validateField(name, parsed)
-  }
-
-  const validateField = (name, value) => {
-    let err = ""
-    if (name === "nombre") { if (editingId) return true }
-    else if (name === "nombrePersonalizado") {
-      if (!editingId && (!value || !value.trim())) err = "El nombre del rol es obligatorio"
-      else if (value && value.length < 6) err = "El nombre debe tener al menos 6 caracteres"
-      else if (value && value.length > 30) err = "El nombre no puede exceder 30 caracteres"
-      else if (value && !/^[a-zA-ZáéíóúÁ�0Í��añ�\s]+$/.test(value)) err = "Solo letras y espacios"
-      else if (value && checkRoleExists(value.trim(), editingId)) err = "Ya existe un rol con este nombre"
-    }
-    setFormErrors(p => ({ ...p, [name]: err }))
-    setTimeout(() => validateForm({ ...formData, [name]: value }), 0)
-    return !err
-  }
-
-  const validateForm = data => {
-    if (!editingId) {
-      const nombreOk =
-        !!data.nombrePersonalizado && data.nombrePersonalizado.trim() !== "" &&
-        data.nombrePersonalizado.length >= 6 && data.nombrePersonalizado.length <= 30 &&
-        /^[a-zA-ZáéíóúÁ�0Í��añ�\s]+$/.test(data.nombrePersonalizado) &&
-        !checkRoleExists(data.nombrePersonalizado.trim(), editingId)
-      const permisosOk = (data.permisos || []).some(p =>
-        p.acciones.crear || p.acciones.leer || p.acciones.actualizar || p.acciones.eliminar
-      )
-      setIsFormValid(nombreOk && permisosOk)
-    } else {
-      setIsFormValid(true)
-    }
-  }
-
-  const handlePermissionChange = (idx, accion, checked) => {
-    if (formData.isAdminRole) return
-    const up = formData.permisos.map((p, i) =>
-      i === idx ? { ...p, acciones: { ...p.acciones, [accion]: checked } } : p
-    )
-    setFormData(prev => ({ ...prev, permisos: up }))
-    validateForm({ ...formData, permisos: up })
-  }
-  const handleSelectAllForModule = idx => {
-    if (formData.isAdminRole) return
-    const up = formData.permisos.map((p, i) => {
-      if (i !== idx) return p
-      return { ...p, acciones: p.modulo === "dashboard"
-        ? { crear: false, leer: true, actualizar: false, eliminar: false }
-        : { crear: true, leer: true, actualizar: true, eliminar: true }
-      }
-    })
-    setFormData(prev => ({ ...prev, permisos: up }))
-    validateForm({ ...formData, permisos: up })
-  }
-  const handleRemoveAllForModule = idx => {
-    if (formData.isAdminRole) return
-    const up = formData.permisos.map((p, i) =>
-      i === idx ? { ...p, acciones: { crear: false, leer: false, actualizar: false, eliminar: false } } : p
-    )
-    setFormData(prev => ({ ...prev, permisos: up }))
-    validateForm({ ...formData, permisos: up })
-  }
-  const handleSelectAllPermissions = () => {
-    if (formData.isAdminRole) return
-    const updated = {
-      ...formData, permisos: formData.permisos.map(p => ({
-        ...p,
-        acciones: p.modulo === "dashboard"
-          ? { crear: false, leer: true, actualizar: false, eliminar: false }
-          : { crear: true, leer: true, actualizar: true, eliminar: true }
-      }))
-    }
-    setFormData(updated); validateForm(updated)
-  }
-  const handleRemoveAllPermissions = () => {
-    if (formData.isAdminRole) return
-    const updated = { ...formData, permisos: formData.permisos.map(p => ({ ...p, acciones: { crear: false, leer: false, actualizar: false, eliminar: false } })) }
-    setFormData(updated); validateForm(updated)
-  }
-
-  const prepareFormData = () => {
-    const f = { ...formData }
-    if (!editingId) { f.nombre = f.nombrePersonalizado || ""; f.estado = true }
-    if (f.nombre.toLowerCase() === "administrador") f.estado = true
-    delete f.nombrePersonalizado; delete f.isAdminRole
-    return f
-  }
-
-  const handleSubmit = async () => {
-    const tempErrors = {}
-    if (!editingId) {
-      if (!formData.nombrePersonalizado || !formData.nombrePersonalizado.trim())
-        tempErrors.nombrePersonalizado = "El nombre del rol es obligatorio"
-      else if (checkRoleExists(formData.nombrePersonalizado.trim(), editingId))
-        tempErrors.nombrePersonalizado = "Ya existe un rol con este nombre"
-      const tienePermisos = (formData.permisos || []).some(p =>
-        p.acciones.crear || p.acciones.leer || p.acciones.actualizar || p.acciones.eliminar
-      )
-      if (!tienePermisos) tempErrors.permisos = "Debes asignar al menos un permiso."
-    }
-    if (Object.keys(tempErrors).length > 0) {
-      setFormErrors(tempErrors)
-      if (tempErrors.nombrePersonalizado?.includes("Ya existe"))
-        await swalFire({ ...SWD, icon: "error", title: "Rol duplicado", text: `Ya existe un rol con el nombre "${formData.nombrePersonalizado}".` })
-      else if (tempErrors.permisos)
-        await swalFire({ ...SWW, icon: "warning", title: "Sin permisos", text: "Debes asignar al menos un permiso antes de crear el rol." })
-      else
-        await swalFire({ ...SWD, icon: "error", title: "Error", text: Object.values(tempErrors)[0] })
-      return
-    }
-    try {
-      const d = prepareFormData()
-      const wasEditing = !!editingId
-      if (wasEditing) {
-        await api.put(`/api/roles/${editingId}`, d)
-      } else {
-        await api.post("/api/roles", d)
-      }
-      handleClose()
-      await fetchRoles()
-      setTimeout(() => {
-        swalFire({ ...SW, icon: "success", title: wasEditing ? "Rol actualizado" : "Rol creado", text: wasEditing ? "Los cambios se guardaron correctamente." : "El nuevo rol se registró correctamente.", timer: 2200, timerProgressBar: true, showConfirmButton: false })
-      }, 300)
-    } catch (e) {
-      let msg = "Ocurrió un error al guardar el rol."
-      if (e.response?.data?.msg) {
-        const s = e.response.data.msg
-        msg = (s.includes("ya existe") || s.includes("duplicate"))
-          ? `No se puede ${editingId ? "actualizar" : "crear"} el rol porque ya existe uno con ese nombre.` : s
-      }
-      await swalFire({ ...SWD, icon: "error", title: "Error al guardar", text: msg })
-    }
-  }
-
-  const handleDelete = async id => {
-    const role = roles.find(r => r._id === id)
-    if (role?.nombre.toLowerCase() === "administrador") {
-      await swalFire({ ...SW, icon: "error", title: "Acción no permitida", text: "El rol de administrador no puede ser eliminado" })
-      return
-    }
-    if (role?.estado) {
-      await swalFire({ ...SWW, icon: "warning", title: "Rol activo", text: "No puedes eliminar un rol activo. Desactívalo primero." })
-      return
-    }
-    const r = await swalFire({ ...SWD, title: "¿Eliminar rol?", text: "Esta acción no se puede deshacer", icon: "question", showCancelButton: true, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar" })
-    if (r.isConfirmed) {
-      try {
-        await api.delete(`/api/roles/${id}`)
-        await fetchRoles()
-        setTimeout(() => {
-          swalFire({ ...SW, icon: "success", title: "Eliminado", text: "El rol se eliminó correctamente.", timer: 2000, timerProgressBar: true, showConfirmButton: false })
-        }, 300)
-      } catch (e) {
-        await swalFire({ ...SW, icon: "error", title: "Error", text: e.response?.data?.msg || "Error al eliminar." })
-      }
-    }
-  }
-
-  /* helpers */
-  const getInitials = name => name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2)
-  const formatPermissions = permisos => {
-    if (!permisos || permisos.length === 0) return "Sin permisos"
-    if (typeof permisos[0] === "string") return permisos.join(", ")
-    const mods = permisos.filter(p => p.acciones.crear || p.acciones.leer || p.acciones.actualizar || p.acciones.eliminar).map(p => p.modulo)
-    return mods.length > 0 ? mods.join(", ") : "Sin permisos"
-  }
-  const countActivePermissions = permisos => {
-    if (!permisos || permisos.length === 0) return 0
-    if (typeof permisos[0] === "string") return permisos.length
-    return permisos.filter(p => p.acciones.crear || p.acciones.leer || p.acciones.actualizar || p.acciones.eliminar).length
-  }
-  const handleTabChange = (_, v) => setTabValue(v)
-
-  const getModuleIcon = m => {
-    const c = T.o1
-    switch (m) {
-      case "dashboard": return <Settings size={14} color={c} />
-      case "usuarios": return <User size={14} color={c} />
-      case "roles": return <Shield size={14} color={c} />
-      case "categorias": return <Tag size={14} color={c} />
-      case "productos": return <ShoppingCart size={14} color={c} />
-      case "pedidos": return <ClipboardList size={14} color={c} />
-      case "reportes": return <BarChart3 size={14} color={c} />
-      default: return <Settings size={14} color={c} />
-    }
-  }
-
-  /* Permission Groups for modal toggle UI */
-  const permissionGroups = [
-    { label: "Panel Administrativo", modules: ["dashboard", "usuarios", "roles"], icon: <Settings size={16} color={T.o1} /> },
-    { label: "Panel de Productos", modules: ["categorias", "productos"], icon: <ShoppingCart size={16} color={T.o1} /> },
-    { label: "Panel de Operaciones", modules: ["pedidos", "reportes"], icon: <ClipboardList size={16} color={T.o1} /> },
-  ]
-  const isGroupEnabled = (permisos, modules) =>
-    modules.some(mod => {
-      const perm = permisos.find(p => p.modulo === mod)
-      return perm && Object.values(perm.acciones).some(v => v)
-    })
-  const handleGroupToggle = (modules, checked) => {
-    if (formData.isAdminRole) return
-    const up = formData.permisos.map(p => {
-      if (!modules.includes(p.modulo)) return p
-      if (checked) {
-        return { ...p, acciones: p.modulo === "dashboard"
-          ? { crear: false, leer: true, actualizar: false, eliminar: false }
-          : { crear: true, leer: true, actualizar: true, eliminar: true }
-        }
-      } else {
-        return { ...p, acciones: { crear: false, leer: false, actualizar: false, eliminar: false } }
-      }
-    })
-    setFormData(prev => ({ ...prev, permisos: up }))
-    validateForm({ ...formData, permisos: up })
-  }
-
-  const totalActive = roles.filter(r => r.estado).length
-  const totalInactive = roles.filter(r => !r.estado).length
-  const filtered = roles.filter(r => r.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage))
-
-  /* ���� Dialog Header ���� */
-  const DlgHdr = ({ icon, title, sub, onClose }) => (
-    <Box sx={{ background: T.go, p: "18px 24px", display: "flex", alignItems: "center", gap: "12px", position: "relative" }}>
-      <Box sx={{ width: 38, height: 38, borderRadius: "12px", background: "rgba(255,255,255,.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</Box>
-      <Box sx={{ flex: 1 }}>
-        <Typography sx={{ fontFamily: `${T.fontH} !important`, fontWeight: "800 !important", fontSize: "1.05rem !important", color: "#fff !important", lineHeight: 1.2 }}>{title}</Typography>
-        <Typography sx={{ fontSize: ".73rem", color: "rgba(255,255,255,.70)", mt: "3px", fontFamily: T.font }}>{sub}</Typography>
-      </Box>
-      <button style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0, transition: "background .2s" }} onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
-    </Box>
-  )
-
-  /* ���� Permission Panel (for future granular editing) ���� */
-  const PermPanel = ({ moduleNames }) => (
-    <Box sx={{ pt: 1 }}>
-      {formData.permisos.filter(p => moduleNames.includes(p.modulo)).map(permiso => {
-        const idx = formData.permisos.findIndex(p => p.modulo === permiso.modulo)
-        const isAdmin = formData.isAdminRole
-        return (
-          <Box key={permiso.modulo} sx={{
-            borderRadius: "14px", p: "14px 16px", mb: "12px",
-            background: T.glass, border: `1px solid ${T.border}`,
-            transition: "box-shadow .2s", "&:hover": { boxShadow: "0 4px 16px rgba(255,107,53,.06)" },
-          }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: "10px" }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: T.font, fontSize: ".85rem", fontWeight: 700, color: T.t1 }}>
-                <Box sx={{ width: 26, height: 26, borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,107,53,.10)" }}>{getModuleIcon(permiso.modulo)}</Box>
-                {permiso.modulo.charAt(0).toUpperCase() + permiso.modulo.slice(1)}
-              </Box>
-              {!isAdmin && (
-                <Box sx={{ display: "flex", gap: "5px" }}>
-                  <Button size="small" sx={permBtnSelSx} onClick={() => handleSelectAllForModule(idx)}><CheckCircle size={10} /> Sel.</Button>
-                  <Button size="small" sx={permBtnQuitSx} onClick={() => handleRemoveAllForModule(idx)}><XCircle size={10} /> Quitar</Button>
-                </Box>
-              )}
-            </Box>
-            <Divider sx={{ my: "8px", background: T.border }} />
-            <Box>
-              {permiso.modulo === "dashboard" ? (
-                <Box sx={{ display: "flex", alignItems: "center", p: "7px 10px", borderRadius: "10px", background: "#fff", border: `1px solid ${T.border}`, mb: 1 }}>
-                  <Eye style={{ color: T.o1, marginRight: 8 }} size={15} />
-                  <Typography sx={{ flex: 1, fontFamily: T.font, fontSize: ".84rem", fontWeight: 600, color: T.t2 }}>Acceso</Typography>
-                  <FormControlLabel control={<Switch checked={permiso.acciones.leer} onChange={e => handlePermissionChange(idx, "leer", e.target.checked)} disabled={isAdmin} size="small" sx={switchSx} />} label="" />
-                </Box>
-              ) : (
-                [
-                  { key: "crear", label: "Crear", icon: <PenTool size={14} /> },
-                  { key: "leer", label: "Ver", icon: <Eye size={14} /> },
-                  { key: "actualizar", label: "Editar", icon: <Edit2 size={14} /> },
-                  { key: "eliminar", label: "Eliminar", icon: <Trash2 size={14} /> },
-                ].map(a => (
-                  <Box key={a.key} sx={{ display: "flex", alignItems: "center", p: "7px 10px", borderRadius: "10px", background: "#fff", border: `1px solid ${T.border}`, mb: 1 }}>
-                    <Box sx={{ color: a.key === "eliminar" ? T.r1 : T.o1, mr: "8px" }}>{a.icon}</Box>
-                    <Typography sx={{ flex: 1, fontFamily: T.font, fontSize: ".84rem", fontWeight: 600, color: T.t2 }}>{a.label}</Typography>
-                    <FormControlLabel control={<Switch checked={permiso.acciones[a.key]} onChange={e => handlePermissionChange(idx, a.key, e.target.checked)} disabled={isAdmin} size="small" sx={switchSx} />} label="" />
-                  </Box>
-                ))
-              )}
-            </Box>
-          </Box>
-        )
-      })}
-    </Box>
-  )
-
-  /* ���� Details Permission Panel ���� */
-  const DetPermPanel = ({ moduleNames }) => (
-    <Box sx={{ pt: 1 }}>
-      {selectedRole?.permisos.filter(p => moduleNames.includes(p.modulo)).map((permiso, i) => (
-        <Box key={i} sx={{ borderRadius: "14px", p: "14px 16px", mb: "12px", background: T.glass, border: `1px solid ${T.border}` }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: T.font, fontSize: ".85rem", fontWeight: 700, color: T.t1, mb: "10px" }}>
-            <Box sx={{ width: 26, height: 26, borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,107,53,.10)" }}>{getModuleIcon(permiso.modulo)}</Box>
-            {permiso.modulo.charAt(0).toUpperCase() + permiso.modulo.slice(1)}
-          </Box>
-          <Divider sx={{ my: 1, background: T.border }} />
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: "4px", mt: 1 }}>
-            {permiso.modulo === "dashboard" ? (
-              <Box sx={{
-                fontFamily: T.font, fontWeight: 700, fontSize: ".72rem", padding: "5px 12px", borderRadius: "18px", m: "3px",
-                display: "inline-flex", alignItems: "center", gap: "4px",
-                ...(permiso.acciones.leer
-                  ? { background: "rgba(255,107,53,.10)", color: T.o1, border: `1px solid ${T.border2}` }
-                  : { background: "rgba(0,0,0,.03)", color: T.t3, border: `1px solid ${T.border}` }),
-              }}><Eye size={11} /> Acceso</Box>
-            ) : (
-              [
-                { key: "crear", label: "Crear", icon: <PenTool size={10} /> },
-                { key: "leer", label: "Ver", icon: <Eye size={10} /> },
-                { key: "actualizar", label: "Editar", icon: <Edit2 size={10} /> },
-                { key: "eliminar", label: "Eliminar", icon: <Trash2 size={10} /> },
-              ].map(a => (
-                <Box key={a.key} sx={{
-                  fontFamily: T.font, fontWeight: 700, fontSize: ".72rem", padding: "5px 12px", borderRadius: "18px", m: "3px",
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  ...(permiso.acciones[a.key]
-                    ? { background: "rgba(255,107,53,.10)", color: T.o1, border: `1px solid ${T.border2}` }
-                    : { background: "rgba(0,0,0,.03)", color: T.t3, border: `1px solid ${T.border}` }),
-                }}>{a.icon} {a.label}</Box>
-              ))
-            )}
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  )
-
-  /* ��������������������������������������������������������������������������������
-     RENDER
-  �������������������������������������������������������������������������������� */
-  return (
-    <Box sx={{ fontFamily: T.font, width: "100%", maxWidth: "100%", overflow: "hidden" }}>
-
-      {/* ���� HEADER ���� */}
-      <Box sx={{
-        background: "#fff", borderRadius: "16px", p: "22px 28px", mb: "16px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        boxShadow: T.sh, border: `1px solid ${T.border}`,
-      }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <Box sx={{
-            width: 52, height: 52, borderRadius: "14px", background: T.go,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(255,107,53,.30)", flexShrink: 0,
-          }}>
-            <Shield size={26} color="#fff" strokeWidth={2} />
-          </Box>
-          <Box>
-            <Typography sx={{ fontFamily: `${T.fontH} !important`, fontSize: "1.35rem !important", fontWeight: "800 !important", color: `${T.t1} !important`, lineHeight: 1.2 }}>
-              Gestión de Roles
-            </Typography>
-            <Typography sx={{ fontSize: ".84rem", color: T.t3, mt: "3px", fontFamily: T.font }}>
-              Administra los roles y permisos del sistema
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* ���� STATS ���� */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", mb: "16px" }}>
-        {[
-          { label: "Total", value: roles.length, desc: "roles registrados", color: T.o1, icon: <Shield size={18} />, bgIcon: "rgba(255,107,53,0.10)" },
-          { label: "Activos", value: totalActive, desc: "habilitados", color: T.green, icon: <CheckCircle size={18} />, bgIcon: "rgba(16,185,129,0.10)" },
-          { label: "Inactivos", value: totalInactive, desc: "desactivados", color: T.r1, icon: <XCircle size={18} />, bgIcon: "rgba(239,68,68,0.08)" },
-        ].map((stat, i) => (
-          <Box key={i} sx={{
-            background: "#fff", borderRadius: "14px", p: "18px 20px",
-            boxShadow: T.sh, border: `1px solid ${T.border}`,
-            transition: "all .2s ease",
-            "&:hover": { boxShadow: "0 4px 12px rgba(0,0,0,0.06)", transform: "translateY(-1px)" },
-          }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "12px" }}>
-              <Typography sx={{ fontFamily: T.font, fontSize: ".70rem", fontWeight: 600, letterSpacing: ".5px", textTransform: "uppercase", color: T.t3 }}>
-                {stat.label}
-              </Typography>
-              <Box sx={{ width: 36, height: 36, borderRadius: "10px", background: stat.bgIcon, display: "flex", alignItems: "center", justifyContent: "center", color: stat.color }}>
-                {stat.icon}
-              </Box>
-            </Box>
-            <Typography sx={{ fontFamily: T.font, fontSize: "1.65rem", fontWeight: 800, lineHeight: 1, color: T.t1, mb: "4px" }}>
-              {stat.value}
-            </Typography>
-            <Typography sx={{ fontFamily: T.font, fontSize: ".73rem", fontWeight: 500, color: T.t3 }}>
-              {stat.desc}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-
-      {/* ���� TOOLBAR ���� */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "16px", gap: "12px", flexWrap: "wrap" }}>
-        <Box sx={{
-          display: "flex", alignItems: "center", gap: "8px",
-          background: "#fff", border: `1.5px solid ${T.border}`,
-          borderRadius: "12px", p: "8px 14px", minWidth: 240,
-          boxShadow: T.sh, transition: "all .2s",
-          "&:focus-within": { borderColor: T.o1, boxShadow: "0 0 0 3px rgba(255,107,53,.08)" },
-        }}>
-          <Search size={16} color={T.t3} strokeWidth={2} />
-          <input style={{
-            border: "none", outline: "none", background: "transparent",
-            fontFamily: T.font, fontSize: "0.85rem", color: T.t1, width: "100%",
-          }} placeholder="Buscar rol..."
-            value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(0) }} />
-        </Box>
-        <button
-          onClick={() => handleOpen(null)}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: "linear-gradient(135deg, #FF6B35, #FF3D00)",
-            color: "#fff", fontFamily: T.font, fontWeight: 700,
-            fontSize: ".82rem", padding: "10px 22px", borderRadius: 12,
-            border: "none", cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(255,107,53,.30)",
-            transition: "all .2s ease",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(255,107,53,.40)" }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(255,107,53,.30)" }}
-        >
-          + Crear Rol
-        </button>
-      </Box>
-
-      {/* ���� ROLES LIST ���� */}
-      <Box sx={{ mb: "16px" }}>
-        {/* Column headers */}
-        {paginated.length > 0 && (
-          <Box sx={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 140px", px: "20px", py: "10px", mb: "6px" }}>
-            {["ROL", "PERMISOS", "ESTADO", "ACCIONES"].map(h => (
-              <Typography key={h} sx={{
-                fontFamily: T.font, fontSize: ".68rem", fontWeight: 700,
-                letterSpacing: "1px", textTransform: "uppercase", color: T.t3,
-                ...(h === "ESTADO" || h === "ACCIONES" ? { textAlign: "center" } : {}),
-              }}>{h}</Typography>
-            ))}
-          </Box>
-        )}
-
-        {/* Card rows */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {paginated.map((role, i) => (
-            <Box key={role._id} sx={{
-              display: "grid", gridTemplateColumns: "2fr 2fr 1fr 140px",
-              alignItems: "center", p: "14px 20px",
-              borderRadius: "14px", background: "#fff",
-              border: `1px solid ${T.border}`,
-              boxShadow: T.sh,
-              transition: "all .2s ease",
-              "&:hover": {
-                boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                transform: "translateY(-1px)",
-                borderColor: T.border2,
-              },
-            }}>
-              {/* Role info */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <Box sx={{
-                  width: 40, height: 40, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0, background: avGrad(i),
-                  fontFamily: T.font, fontWeight: 700, fontSize: ".80rem", color: "#fff",
-                  boxShadow: "0 2px 8px rgba(0,0,0,.12)",
-                }}>
-                  {getInitials(role.nombre)}
-                </Box>
-                <Box>
-                  <Typography sx={{ fontFamily: T.font, fontWeight: 700, fontSize: ".88rem", color: T.t1, lineHeight: 1.3 }}>
-                    {role.nombre}
-                  </Typography>
-                  <Typography sx={{ fontFamily: T.font, fontSize: ".68rem", color: T.t3 }}>
-                    #{role._id?.slice(-6).toUpperCase()}
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Permissions */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Box sx={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  background: "rgba(255,107,53,0.06)", borderRadius: "6px",
-                  padding: "3px 8px",
-                }}>
-                  <Shield size={12} color={T.o1} />
-                  <Typography sx={{ fontFamily: T.font, fontSize: ".72rem", fontWeight: 600, color: T.o1 }}>
-                    {countActivePermissions(role.permisos)}
-                  </Typography>
-                </Box>
-                <Tooltip title={formatPermissions(role.permisos)} placement="top">
-                  <Typography sx={{
-                    fontFamily: T.font, fontSize: ".80rem", color: T.t3,
-                    maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {formatPermissions(role.permisos)}
-                  </Typography>
-                </Tooltip>
-              </Box>
-
-              {/* Status */}
-              <Box sx={{ textAlign: "center" }}>
-                <Box component="span" sx={{
-                  display: "inline-flex", alignItems: "center", gap: "5px",
-                  padding: "4px 12px", borderRadius: "20px",
-                  fontFamily: T.font, fontSize: ".72rem", fontWeight: 600,
-                  ...(role.estado
-                    ? { background: "rgba(16,185,129,0.10)", color: "#059669" }
-                    : { background: "rgba(239,68,68,0.08)", color: "#DC2626" }),
-                }}>
-                  <Box sx={{
-                    width: 6, height: 6, borderRadius: "50%",
-                    background: role.estado ? "#10B981" : "#EF4444",
-                  }} />
-                  {role.estado ? "Activo" : "Inactivo"}
-                </Box>
-              </Box>
-
-              {/* Actions */}
-              <Box sx={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                <Tooltip title="Editar" placement="top">
-                  <Button sx={btnEdit} onClick={() => handleOpen(role)}><Edit2 size={15} strokeWidth={2} /></Button>
-                </Tooltip>
-                <Tooltip title="Ver detalles" placement="top">
-                  <Button sx={btnView} onClick={() => handleDetails(role)}><Eye size={15} strokeWidth={2} /></Button>
-                </Tooltip>
-                {role.nombre.toLowerCase() !== "administrador"
-                  ? (
-                    <Tooltip title={role.estado ? "Desactiva el rol para eliminar" : "Eliminar"} placement="top">
-                      <Button sx={{ ...btnDel, ...(role.estado ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
-                        onClick={() => handleDelete(role._id)}>
-                        <Trash2 size={15} strokeWidth={2} />
-                      </Button>
-                    </Tooltip>
-                  )
-                  : <Box sx={{ width: 34 }} />
-                }
-              </Box>
-            </Box>
-          ))}
-        </Box>
-
-        {/* Empty state */}
-        {paginated.length === 0 && (
-          <Box sx={{
-            background: "#fff", borderRadius: "16px", border: `1px solid ${T.border}`,
-            boxShadow: T.sh, p: "64px 20px", textAlign: "center",
-          }}>
-            <Box sx={{
-              width: 80, height: 80, borderRadius: "50%",
-              background: "rgba(255,107,53,0.08)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              mx: "auto", mb: "20px",
-            }}>
-              <Shield size={36} color={T.o1} strokeWidth={1.5} />
-            </Box>
-            <Typography sx={{ fontFamily: T.fontH, fontSize: "1.1rem", fontWeight: 800, color: T.t1, mb: "8px" }}>
-              {roles.length === 0 ? "No hay roles registrados" : "Sin resultados"}
-            </Typography>
-            <Typography sx={{ fontFamily: T.font, fontSize: ".85rem", color: T.t3, maxWidth: 360, mx: "auto", mb: "20px", lineHeight: 1.5 }}>
-              {roles.length === 0
-                ? "Crea un nuevo rol para administrar los permisos del sistema."
-                : "No se encontraron roles que coincidan con la b\u00fasqueda."}
-            </Typography>
-            {roles.length === 0 && (
-              <button
-                onClick={() => handleOpen(null)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  background: "linear-gradient(135deg, #FF6B35, #FF3D00)",
-                  color: "#fff", fontFamily: T.font, fontWeight: 700,
-                  fontSize: ".82rem", padding: "10px 24px", borderRadius: 12,
-                  border: "none", cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(255,107,53,.30)",
-                  transition: "all .2s ease",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(255,107,53,.40)" }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(255,107,53,.30)" }}
-              >
-                + Crear Rol
-              </button>
-            )}
-          </Box>
-        )}
-      </Box>
-
-      {/* ���� PAGINATION ���� */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-        <Typography sx={{ fontFamily: T.font, fontSize: ".78rem", color: T.t3 }}>
-          Mostrando {filtered.length === 0 ? 0 : page * rowsPerPage + 1}�{Math.min((page + 1) * rowsPerPage, filtered.length)} de {filtered.length} roles
-        </Typography>
-        <Box sx={{ display: "flex", gap: "4px" }}>
-          <Button sx={pageBtn} onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{ opacity: page === 0 ? .35 : 1 }}><ArrowLeft size={14} /></Button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <Button key={i} sx={page === i ? pageBtnOn : pageBtn} onClick={() => setPage(i)}>{i + 1}</Button>
-          ))}
-          <Button sx={pageBtn} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={{ opacity: page >= totalPages - 1 ? .35 : 1 }}><ArrowRight size={14} /></Button>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography sx={{ fontFamily: T.font, fontSize: ".78rem", color: T.t3 }}>Filas:</Typography>
-          <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(0) }}
-            style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: "4px 8px", fontFamily: T.font, fontSize: ".80rem", color: T.t2, background: "#fff", outline: "none", cursor: "pointer" }}>
-            {[5, 10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </Box>
-      </Box>
-
-      {/* ���� MODAL CREAR / EDITAR ���� */}
-      <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
-        fullWidth maxWidth="sm"
-        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(8px)", background: "rgba(15,23,42,.25)" } }}
-        slotProps={{ paper: { sx: {
-          borderRadius: "20px !important", boxShadow: "0 25px 50px rgba(0,0,0,0.15) !important",
-          border: "none", width: "90%", maxWidth: 520,
-          background: "#fff !important", overflow: "hidden",
-        } } }}>
-
-        <DlgHdr
-          icon={editingId ? <Edit2 size={18} color="#fff" /> : <Shield size={18} color="#fff" />}
-          title={editingId ? "Editar Rol" : "Crear Nuevo Rol"}
-          sub={editingId ? "Modifica los datos del rol seleccionado" : "Completa los campos para registrar un nuevo rol"}
-          onClose={handleClose}
-        />
-
-        <DialogContent sx={{ p: "20px 24px 10px !important", background: "#fff" }}>
-
-          {/* Info */}
-          <Box sx={{ mb: 2 }}>
-            {editingId ? (
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <TextField margin="dense" label="Rol" value={formData.nombre}
-                  fullWidth variant="outlined" size="small"
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px", fontFamily: T.font, fontSize: ".85rem", background: T.glass } }}
-                  slotProps={{ input: { readOnly: true, startAdornment: <InputAdornment position="start"><Shield size={14} color={T.t3} /></InputAdornment> } }}
-                />
-                <TextField select margin="dense" label="Estado" name="estado"
-                  value={formData.estado} onChange={handleChange}
-                  fullWidth variant="outlined" size="small"
-                  disabled={formData.isAdminRole}
-                  helperText={formData.isAdminRole ? "El administrador siempre está activo" : ""}
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px", fontFamily: T.font, fontSize: ".85rem", background: T.glass } }}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Key size={14} color={T.t3} /></InputAdornment> } }}
-                >
-                  <MenuItem value={true}>Activo</MenuItem>
-                  <MenuItem value={false}>Inactivo</MenuItem>
-                </TextField>
-              </Box>
-            ) : (
-              <TextField margin="dense" label="Nombre de Rol" name="nombrePersonalizado"
-                value={formData.nombrePersonalizado || ""} onChange={handleChange}
-                onBlur={e => validateField(e.target.name, e.target.value)}
-                onKeyPress={e => { if (!/^[a-zA-ZáéíóúÁ�0Í��añ�\s]*$/.test(e.key)) e.preventDefault() }}
-                fullWidth variant="outlined" size="small"
-                placeholder="Ej. Supervisor"
-                error={!!formErrors.nombrePersonalizado}
-                helperText={formErrors.nombrePersonalizado || "El rol se creará como activo por defecto"}
-                required
-                inputProps={{ maxLength: 30 }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px", fontFamily: T.font, fontSize: ".85rem", background: T.glass } }}
-                slotProps={{ input: { startAdornment: <InputAdornment position="start"><User size={14} color={T.t3} /></InputAdornment> } }}
-              />
-            )}
-          </Box>
-
-          {/* Permisos */}
-          <Box sx={{ mb: 1 }}>
-            <Box sx={{
-              display: "flex", alignItems: "center", gap: "8px",
-              fontFamily: T.font, fontSize: ".80rem", fontWeight: 700,
-              color: T.t1, mb: "14px", pb: "8px",
-              borderBottom: `1.5px solid ${T.border}`,
-            }}>
-              <Box sx={{ width: 26, height: 26, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(16,185,129,.10)" }}>
-                <CheckCircle size={12} color={T.green} />
-              </Box>
-              Permisos
-              {formData.isAdminRole && (
-                <Box component="span" sx={{
-                  ml: "auto", display: "inline-flex", alignItems: "center", gap: "4px",
-                  fontSize: ".70rem", fontWeight: 600, color: T.o1,
-                  background: "rgba(255,107,53,.08)", border: `1px solid ${T.border2}`,
-                  borderRadius: "20px", padding: "3px 10px",
-                }}>
-                  <Lock size={10} /> Bloqueados
-                </Box>
-              )}
-              {!editingId && !(formData.permisos || []).some(p => p.acciones.crear || p.acciones.leer || p.acciones.actualizar || p.acciones.eliminar) && (
-                <Box component="span" sx={{
-                  ml: "auto", display: "inline-flex", alignItems: "center", gap: "4px",
-                  fontSize: ".70rem", fontWeight: 600, color: T.r1,
-                  background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.18)",
-                  borderRadius: "20px", padding: "3px 10px",
-                }}>
-                  <AlertTriangle size={10} /> Mínimo un permiso
-                </Box>
-              )}
-            </Box>
-
-            {permissionGroups.map(group => {
-              const enabled = isGroupEnabled(formData.permisos, group.modules)
-              return (
-                <Box key={group.label} sx={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  p: "12px 16px", borderRadius: "12px", mb: "8px",
-                  background: enabled ? "rgba(255,107,53,.03)" : "#fff",
-                  border: `1.5px solid ${enabled ? T.border2 : T.border}`,
-                  transition: "all .2s ease",
-                  "&:hover": { borderColor: enabled ? T.border2 : "#CBD5E1" },
-                }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <Box sx={{
-                      width: 32, height: 32, borderRadius: "9px",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: enabled ? "rgba(255,107,53,.10)" : "rgba(0,0,0,.04)",
-                      transition: "background .2s",
-                    }}>
-                      {group.icon}
-                    </Box>
-                    <Typography sx={{ fontFamily: T.font, fontSize: ".88rem", fontWeight: 600, color: T.t1 }}>
-                      {group.label}
-                    </Typography>
-                  </Box>
-                  <Switch
-                    checked={enabled}
-                    onChange={e => handleGroupToggle(group.modules, e.target.checked)}
-                    disabled={formData.isAdminRole}
-                    sx={switchSx}
-                  />
-                </Box>
-              )
-            })}
-          </Box>
-        </DialogContent>
-
-        <DialogActions sx={{ p: "12px 24px 18px !important", background: "#fff", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-          <Button onClick={handleClose} sx={cancelBtnSx}>Cancelar</Button>
-          <Button onClick={handleSubmit} sx={submitBtnSx} disabled={!isFormValid}>
-            <CheckIcon size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-            {editingId ? "Actualizar Rol" : "+ Crear Rol"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ���� MODAL DETALLES ���� */}
-      <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
-        fullWidth maxWidth="sm"
-        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(8px)", background: "rgba(15,23,42,.25)" } }}
-        slotProps={{ paper: { sx: {
-          borderRadius: "20px !important", boxShadow: "0 25px 50px rgba(0,0,0,0.15) !important",
-          border: "none", width: 580, maxWidth: "96vw",
-          background: "#fff !important", overflow: "hidden",
-        } } }}>
-
-        <DlgHdr icon={<Eye size={18} color="#fff" />} title="Detalles del Rol" sub="Información completa del rol" onClose={handleCloseDetails} />
-
-        <DialogContent sx={{ p: "20px 24px 10px !important", background: "#fff" }}>
-          {selectedRole ? (
-            <>
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", p: "8px 0 20px" }}>
-                <Box sx={{
-                  width: 64, height: 64, borderRadius: "50%", background: T.go,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 6px 20px rgba(255,107,53,.30)", mb: "12px",
-                  fontFamily: T.font, fontWeight: 800, fontSize: 22, color: "#fff",
-                }}>{getInitials(selectedRole.nombre)}</Box>
-                <Typography sx={{ fontFamily: `${T.fontH} !important`, fontSize: "1.15rem !important", fontWeight: "800 !important", color: `${T.t1} !important`, mb: "6px" }}>
-                  {selectedRole.nombre}
-                </Typography>
-                <Box component="span" sx={{
-                  display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 12px",
-                  borderRadius: "20px", fontFamily: T.font, fontSize: ".72rem", fontWeight: 600,
-                  ...(selectedRole.estado
-                    ? { background: "rgba(16,185,129,0.10)", color: "#059669" }
-                    : { background: "rgba(239,68,68,0.08)", color: "#DC2626" }),
-                }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: selectedRole.estado ? "#10B981" : "#EF4444" }} />
-                  {selectedRole.estado ? "Activo" : "Inactivo"}
-                </Box>
-              </Box>
-
-              <Box sx={{ height: 1, background: T.border, my: "12px" }} />
-
-              <Box sx={{
-                display: "flex", alignItems: "center", gap: "8px",
-                fontFamily: T.font, fontSize: ".80rem", fontWeight: 700,
-                color: T.t1, mb: "12px", pb: "8px",
-                borderBottom: `1.5px solid ${T.border}`,
-              }}>
-                <Box sx={{ width: 26, height: 26, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,107,53,.10)" }}>
-                  <Shield size={12} color={T.o1} />
-                </Box>
-                Permisos por Módulo
-              </Box>
-
-              <Tabs value={tabValue} onChange={handleTabChange} sx={{
-                mb: 2,
-                "& .MuiTabs-indicator": { background: T.go, height: 3, borderRadius: "3px" },
-                borderBottom: `1.5px solid ${T.border}`,
-              }}>
-                <Tab label="Sistema" sx={{ fontFamily: `${T.font} !important`, fontWeight: "600 !important", fontSize: ".78rem !important", textTransform: "none !important", color: `${T.t3} !important`, "&.Mui-selected": { color: `${T.o1} !important` } }} icon={<Settings size={14} />} />
-                <Tab label="Inventario" sx={{ fontFamily: `${T.font} !important`, fontWeight: "600 !important", fontSize: ".78rem !important", textTransform: "none !important", color: `${T.t3} !important`, "&.Mui-selected": { color: `${T.o1} !important` } }} icon={<ShoppingCart size={14} />} />
-                <Tab label="Operaciones" sx={{ fontFamily: `${T.font} !important`, fontWeight: "600 !important", fontSize: ".78rem !important", textTransform: "none !important", color: `${T.t3} !important`, "&.Mui-selected": { color: `${T.o1} !important` } }} icon={<ClipboardList size={14} />} />
-              </Tabs>
-
-              {tabValue === 0 && <DetPermPanel moduleNames={["dashboard", "usuarios", "roles"]} />}
-              {tabValue === 1 && <DetPermPanel moduleNames={["categorias", "productos"]} />}
-              {tabValue === 2 && <DetPermPanel moduleNames={["pedidos", "reportes"]} />}
-            </>
-          ) : (
-            <Typography sx={{ fontFamily: T.font, color: T.t3 }}>Cargando...</Typography>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ p: "12px 24px 18px !important", background: "#fff", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-          <Button onClick={handleCloseDetails} sx={cancelBtnSx}>Cerrar</Button>
-          {selectedRole && (
-            <Button onClick={() => { handleCloseDetails(); handleOpen(selectedRole) }} sx={submitBtnSx}>
-              <Edit2 size={13} style={{ flexShrink: 0 }} /> Editar
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-
-    </Box>
-  )
-}
-
-export default RolesList

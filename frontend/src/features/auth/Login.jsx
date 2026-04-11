@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
+import loginBg from "../../assets/images/login.jpeg"
 import axios from "axios"
 import Swal from "sweetalert2"
 import { InputAdornment, TextField, Box, Typography } from "@mui/material"
@@ -37,11 +38,7 @@ const T = {
   sh: "0 4px 24px rgba(0,0,0,0.06)",
 }
 
-// ─── Fondo: video + imagen fallback ────────────────────────────
-// Video: platos servidos en mesa tipo bandeja paisa (Los Muertos Crew – Pexels)
-const BG_VIDEO = "https://videos.pexels.com/video-files/7772234/7772234-hd_1920_1080_24fps.mp4"
-// Imagen fallback: bandeja paisa tradicional colombiana (bgcortez – Pexels)
-const BG_IMAGE = "https://images.pexels.com/photos/35437152/pexels-photo-35437152.png?auto=compress&cs=tinysrgb&w=1920"
+// ─── Fondo: imagen local ────────────────────────────────────────
 
 // ─── Fuentes + keyframes ────────────────────────────────────────
 if (typeof document !== "undefined" && !document.getElementById("sa-style")) {
@@ -60,6 +57,11 @@ if (typeof document !== "undefined" && !document.getElementById("sa-style")) {
     @keyframes sa-fadeUp  { from{opacity:0;transform:translateY(30px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
     @keyframes sa-pillIn  { from{opacity:0;transform:translateX(-25px)} to{opacity:1;transform:translateX(0)} }
     @keyframes sa-bgZoom  { 0%{transform:scale(1)} 100%{transform:scale(1.05)} }
+    @keyframes sa-kenBurns { 0%{transform:scale(1) translate(0,0)} 25%{transform:scale(1.08) translate(-1.5%,-1%)} 50%{transform:scale(1.12) translate(1%,-2%)} 75%{transform:scale(1.06) translate(-0.5%,0.5%)} 100%{transform:scale(1) translate(0,0)} }
+    @keyframes sa-bgShine  { 0%{transform:translateX(-150%) rotate(25deg)} 100%{transform:translateX(250%) rotate(25deg)} }
+    @keyframes sa-bgFade   { 0%,100%{opacity:.55} 50%{opacity:.40} }
+    @keyframes sa-bgDrift  { 0%{transform:scale(1.05) translate(0,0)} 33%{transform:scale(1.1) translate(-2%,-1%)} 66%{transform:scale(1.07) translate(1%,-1.5%)} 100%{transform:scale(1.05) translate(0,0)} }
+    @keyframes sa-vignettePulse { 0%,100%{opacity:.3} 50%{opacity:.5} }
     @keyframes sa-ember   { 0%{opacity:0;transform:translateY(0) scale(.5)} 20%{opacity:1} 80%{opacity:.7} 100%{opacity:0;transform:translateY(-100vh) scale(0)} }
     .sa-spin { animation: sa-spin .7s linear infinite }
     @media (max-width:820px){
@@ -313,25 +315,18 @@ const ForgotView = ({ fe, setFe, fer, setFer, fok, onForgot, loading }) => (
   </form>
 )
 
-// ─── Video de fondo con fallback a imagen ───────────────────────
-function VideoBg({ className }) {
-  const vidRef = useRef(null)
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    const v = vidRef.current; if (!v) return
-    v.play().catch(() => {})
-  }, [])
+// ─── Imagen de fondo animada (Ken Burns cinematográfico) ────────
+function ImageBg() {
   return (
     <>
-      {/* Imagen fallback (se muestra mientras carga el video o si falla) */}
-      <div style={{ position:"absolute", inset:"-5%", backgroundImage:`url('${BG_IMAGE}')`, backgroundSize:"cover", backgroundPosition:"center 40%", transition:"opacity 1.2s ease", opacity: loaded ? 0 : 1 }}/>
-      {/* Video */}
-      <video ref={vidRef} muted loop playsInline autoPlay preload="auto"
-        onCanPlayThrough={()=>setLoaded(true)}
-        style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 40%", transition:"opacity 1.5s ease", opacity: loaded ? 1 : 0 }}
-      >
-        <source src={BG_VIDEO} type="video/mp4"/>
-      </video>
+      {/* Imagen principal con Ken Burns */}
+      <div style={{ position:"absolute", inset:"-12%", backgroundImage:`url('${loginBg}')`, backgroundSize:"cover", backgroundPosition:"center 40%", animation:"sa-kenBurns 25s ease-in-out infinite", willChange:"transform" }}/>
+      {/* Brillo cinematográfico que recorre la imagen */}
+      <div style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none" }}>
+        <div style={{ position:"absolute", top:"-50%", left:0, width:"60%", height:"200%", background:"linear-gradient(90deg, transparent 0%, rgba(255,255,255,.07) 40%, rgba(255,255,255,.12) 50%, rgba(255,255,255,.07) 60%, transparent 100%)", animation:"sa-bgShine 8s ease-in-out 3s infinite", willChange:"transform" }}/>
+      </div>
+      {/* Viñeta pulsante sutil */}
+      <div style={{ position:"absolute", inset:0, boxShadow:"inset 0 0 180px 60px rgba(0,0,0,.35)", pointerEvents:"none", animation:"sa-vignettePulse 6s ease-in-out infinite" }}/>
     </>
   )
 }
@@ -501,8 +496,8 @@ export default function Login() {
       {/* ── Panel izquierdo: video de fondo fullbleed ── */}
       <div className="sa-left" style={{ flex:"1 1 58%", minWidth:0, position:"relative", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
 
-        {/* Video / imagen de fondo */}
-        <VideoBg/>
+        {/* Imagen de fondo */}
+        <ImageBg/>
 
         {/* Overlay multi-capa */}
         <div style={{ position:"absolute", inset:0, background:"linear-gradient(170deg, rgba(8,4,2,.55) 0%, rgba(15,8,4,.35) 35%, rgba(20,10,5,.25) 55%, rgba(8,4,2,.65) 100%)" }}/>
@@ -549,14 +544,11 @@ export default function Login() {
       {/* ── Panel derecho: card flotante con fondo difuso ── */}
       <div className="sa-card-wrap" style={{ flex:"0 0 clamp(380px,42%,480px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"24px", position:"relative", overflow:"hidden" }}>
 
-        {/* Fondo: video continuado difuso */}
+        {/* Fondo: imagen difusa animada */}
         <div style={{ position:"absolute", inset:"-10%", overflow:"hidden" }}>
-          <div style={{ position:"absolute", inset:0, backgroundImage:`url('${BG_IMAGE}')`, backgroundSize:"cover", backgroundPosition:"right center" }}/>
-          <video muted loop playsInline autoPlay preload="auto" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"right center" }}>
-            <source src={BG_VIDEO} type="video/mp4"/>
-          </video>
+          <div style={{ position:"absolute", inset:0, backgroundImage:`url('${loginBg}')`, backgroundSize:"cover", backgroundPosition:"right center", animation:"sa-bgDrift 20s ease-in-out infinite", willChange:"transform" }}/>
         </div>
-        <div style={{ position:"absolute", inset:0, background:"rgba(6,3,1,.55)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)" }}/>
+        <div style={{ position:"absolute", inset:0, background:"rgba(6,3,1,.55)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", animation:"sa-bgFade 8s ease-in-out infinite" }}/>
 
         {/* Card principal con glow animado */}
         <div ref={cardRef} style={{ position:"relative", zIndex:2, width:"100%", maxWidth:420, background:"rgba(255,255,255,.96)", backdropFilter:"blur(40px) saturate(200%)", WebkitBackdropFilter:"blur(40px) saturate(200%)", borderRadius:26, padding:"clamp(30px,3.8vw,44px) clamp(28px,3.2vw,38px)", boxShadow:"0 10px 50px rgba(0,0,0,.30), 0 40px 100px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.8)", animation:"sa-fadeUp .9s cubic-bezier(.22,1,.36,1) .15s both, sa-glow 4s ease-in-out infinite", transformStyle:"preserve-3d", overflow:"hidden", maxHeight:"calc(100vh - 48px)", transition:"transform .15s ease-out" }}>
