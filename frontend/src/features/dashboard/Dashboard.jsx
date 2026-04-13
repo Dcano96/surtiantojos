@@ -7,6 +7,10 @@ import { RolesList } from "../roles"
 import { CategoriasList } from "../categorias"
 import { UsuariosList } from "../usuarios"
 import { ProductosList } from "../productos"
+import { PedidosList } from "../pedidos"
+import { ClientesList } from "../clientes"
+import { VentasList } from "../ventas"
+import { DetallesVentasList } from "../detallesVentas"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, FileText,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
@@ -1161,7 +1165,10 @@ export default function Dashboard() {
       case "dashboard":  return renderDashboard()
       case "productos":  return <ProductosList />
       case "categorias": return <CategoriasList />
-      case "pedidos":    return placeholder("pedidos")
+      case "pedidos":    return <PedidosList />
+      case "clientes":   return <ClientesList />
+      case "ventas":     return <VentasList />
+      case "detallesVentas": return <DetallesVentasList />
       case "reportes":   return placeholder("reportes")
       case "roles":      return <RolesList />
       case "usuarios":   return <UsuariosList />

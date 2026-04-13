@@ -7,6 +7,7 @@ import pedidoRoutes from './modules/pedidos/pedido.routes.js'
 import usuarioRoutes from './modules/usuarios/usuario.routes.js'
 import rolRoutes from './modules/roles/rol.routes.js'
 import ventaRoutes from './modules/ventas/venta.routes.js'
+import clienteRoutes from './modules/clientes/cliente.routes.js'
 
 const app = express()
 
@@ -22,6 +23,7 @@ app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/usuarios', usuarioRoutes)
 app.use('/api/roles', rolRoutes)
 app.use('/api/ventas', ventaRoutes)
+app.use('/api/clientes', clienteRoutes)
 
 // Ruta de prueba
 app.get('/', (req, res) => {

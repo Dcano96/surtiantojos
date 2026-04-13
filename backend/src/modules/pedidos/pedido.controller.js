@@ -1,8 +1,51 @@
+import mongoose from 'mongoose'
 import Pedido from './pedido.model.js'
+import DetallePedido from './detallePedido.model.js'
+import Producto from '../productos/producto.model.js'
+
+const calcularTotales = (detalles, descuento = 0, impuesto = 0) => {
+  const subtotal = detalles.reduce((acc, d) => acc + d.subtotal, 0)
+  const total = Math.max(0, subtotal - descuento + impuesto)
+  return { subtotal, total }
+}
+
+const construirDetalles = async (items = []) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error('El pedido debe tener al menos un producto')
+  }
+  const ids = items.map((i) => i.producto)
+  const productos = await Producto.find({ _id: { $in: ids } }).lean()
+  const mapa = new Map(productos.map((p) => [String(p._id), p]))
+
+  return items.map((item) => {
+    const p = mapa.get(String(item.producto))
+    if (!p) throw new Error(`Producto no encontrado: ${item.producto}`)
+    const cantidad = Number(item.cantidad) || 0
+    if (cantidad < 1) throw new Error(`Cantidad inválida para ${p.nombre}`)
+    const precioUnitario = item.precioUnitario != null ? Number(item.precioUnitario) : p.precio
+    const descuento = Number(item.descuento) || 0
+    const subtotal = Math.max(0, cantidad * precioUnitario - descuento)
+    return {
+      producto: p._id,
+      nombreProducto: p.nombre,
+      cantidad,
+      precioUnitario,
+      descuento,
+      subtotal,
+      notas: item.notas,
+    }
+  })
+}
 
 export const getPedidos = async (req, res) => {
   try {
-    const pedidos = await Pedido.find().populate('usuario', 'nombre email').populate('productos.producto', 'nombre precio')
+    const { estado } = req.query
+    const filtro = estado ? { estado } : {}
+    const pedidos = await Pedido.find(filtro)
+      .populate('usuario', 'nombre email')
+      .populate('atendidoPor', 'nombre email')
+      .populate('detalles')
+      .sort({ createdAt: -1 })
     res.json(pedidos)
   } catch (err) {
     res.status(500).json({ msg: 'Error al obtener pedidos', error: err.message })
@@ -11,7 +54,11 @@ export const getPedidos = async (req, res) => {
 
 export const getPedido = async (req, res) => {
   try {
-    const pedido = await Pedido.findById(req.params.id).populate('usuario', 'nombre email').populate('productos.producto', 'nombre precio')
+    const pedido = await Pedido.findById(req.params.id)
+      .populate('usuario', 'nombre email')
+      .populate('atendidoPor', 'nombre email')
+      .populate('comprobantePago.verificadoPor', 'nombre email')
+      .populate({ path: 'detalles', populate: { path: 'producto', select: 'nombre precio imagen' } })
     if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
     res.json(pedido)
   } catch (err) {
@@ -20,31 +67,184 @@ export const getPedido = async (req, res) => {
 }
 
 export const crearPedido = async (req, res) => {
+  const session = await mongoose.startSession()
   try {
-    const pedido = new Pedido(req.body)
-    await pedido.save()
-    res.status(201).json(pedido)
+    const { cliente, items, descuento = 0, impuesto = 0, notas, fechaEntrega, comprobantePago } = req.body
+    if (!cliente?.nombre || !cliente?.telefono || !cliente?.direccion) {
+      return res.status(400).json({ msg: 'Datos del cliente incompletos (nombre, teléfono, dirección)' })
+    }
+
+    const detallesPlanos = await construirDetalles(items)
+    const { subtotal, total } = calcularTotales(detallesPlanos, descuento, impuesto)
+
+    const userId = req.usuario?.id
+    let pedidoCreado
+    await session.withTransaction(async () => {
+      const [pedido] = await Pedido.create([{
+        cliente,
+        usuario: userId,
+        atendidoPor: userId,
+        subtotal,
+        descuento,
+        impuesto,
+        total,
+        estado: 'pendiente_pago',
+        historialEstados: [{ estado: 'pendiente_pago', usuario: userId, nota: 'Pedido creado, esperando comprobante de pago por WhatsApp' }],
+        comprobantePago: comprobantePago || {},
+        fechaEntrega,
+        notas,
+      }], { session })
+
+      const detallesConPedido = detallesPlanos.map((d) => ({ ...d, pedido: pedido._id }))
+      await DetallePedido.insertMany(detallesConPedido, { session })
+      pedidoCreado = pedido
+    })
+
+    const completo = await Pedido.findById(pedidoCreado._id)
+      .populate('usuario', 'nombre email')
+      .populate('detalles')
+    res.status(201).json(completo)
   } catch (err) {
     res.status(400).json({ msg: 'Error al crear pedido', error: err.message })
+  } finally {
+    session.endSession()
   }
 }
 
 export const actualizarPedido = async (req, res) => {
   try {
-    const pedido = await Pedido.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const { cliente, descuento, impuesto, notas, fechaEntrega } = req.body
+    const pedido = await Pedido.findById(req.params.id)
     if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    if (['entregado', 'cancelado'].includes(pedido.estado)) {
+      return res.status(400).json({ msg: `No se puede editar un pedido en estado "${pedido.estado}"` })
+    }
+
+    if (cliente) pedido.cliente = { ...pedido.cliente.toObject?.() ?? pedido.cliente, ...cliente }
+    if (descuento != null) pedido.descuento = descuento
+    if (impuesto != null) pedido.impuesto = impuesto
+    if (notas != null) pedido.notas = notas
+    if (fechaEntrega != null) pedido.fechaEntrega = fechaEntrega
+
+    const detalles = await DetallePedido.find({ pedido: pedido._id })
+    const { subtotal, total } = calcularTotales(detalles, pedido.descuento, pedido.impuesto)
+    pedido.subtotal = subtotal
+    pedido.total = total
+
+    await pedido.save()
     res.json(pedido)
   } catch (err) {
     res.status(400).json({ msg: 'Error al actualizar pedido', error: err.message })
   }
 }
 
-export const eliminarPedido = async (req, res) => {
+export const cambiarEstado = async (req, res) => {
   try {
-    const pedido = await Pedido.findByIdAndDelete(req.params.id)
+    const { estado, nota } = req.body
+    const pedido = await Pedido.findById(req.params.id)
     if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    const { ok, msg } = Pedido.validarTransicion(pedido.estado, estado, pedido)
+    if (!ok) return res.status(400).json({ msg })
+
+    pedido.estado = estado
+    pedido.historialEstados.push({ estado, usuario: req.usuario?.id, nota })
+    await pedido.save()
+    res.json(pedido)
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al cambiar estado', error: err.message })
+  }
+}
+
+export const registrarComprobante = async (req, res) => {
+  try {
+    const { url, metodoPago, referencia, fechaEnvio } = req.body
+    const pedido = await Pedido.findById(req.params.id)
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    pedido.comprobantePago = {
+      ...pedido.comprobantePago?.toObject?.() ?? {},
+      url,
+      metodoPago,
+      referencia,
+      fechaEnvio: fechaEnvio || new Date(),
+      verificado: false,
+      verificadoPor: undefined,
+      fechaVerificacion: undefined,
+      notasVerificacion: undefined,
+    }
+
+    if (pedido.estado === 'pendiente_pago') {
+      pedido.estado = 'comprobante_recibido'
+      pedido.historialEstados.push({
+        estado: 'comprobante_recibido',
+        usuario: req.usuario?.id,
+        nota: 'Comprobante de pago recibido, pendiente de verificación',
+      })
+    }
+
+    await pedido.save()
+    res.json(pedido)
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al registrar comprobante', error: err.message })
+  }
+}
+
+export const verificarComprobante = async (req, res) => {
+  try {
+    const { aprobado, notas } = req.body
+    const pedido = await Pedido.findById(req.params.id)
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    if (!pedido.comprobantePago?.url) {
+      return res.status(400).json({ msg: 'No hay comprobante registrado para este pedido' })
+    }
+
+    const userId = req.usuario?.id
+    pedido.comprobantePago.verificado = !!aprobado
+    pedido.comprobantePago.verificadoPor = userId
+    pedido.comprobantePago.fechaVerificacion = new Date()
+    pedido.comprobantePago.notasVerificacion = notas
+
+    if (aprobado) {
+      const { ok, msg } = Pedido.validarTransicion(pedido.estado, 'confirmado', pedido)
+      if (!ok) return res.status(400).json({ msg })
+      pedido.estado = 'confirmado'
+      pedido.historialEstados.push({
+        estado: 'confirmado',
+        usuario: userId,
+        nota: notas || 'Comprobante verificado y aprobado',
+      })
+    } else {
+      pedido.estado = 'pendiente_pago'
+      pedido.historialEstados.push({
+        estado: 'pendiente_pago',
+        usuario: userId,
+        nota: notas || 'Comprobante rechazado, esperando nuevo comprobante',
+      })
+    }
+
+    await pedido.save()
+    res.json(pedido)
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al verificar comprobante', error: err.message })
+  }
+}
+
+export const eliminarPedido = async (req, res) => {
+  const session = await mongoose.startSession()
+  try {
+    await session.withTransaction(async () => {
+      const pedido = await Pedido.findByIdAndDelete(req.params.id, { session })
+      if (!pedido) throw new Error('Pedido no encontrado')
+      await DetallePedido.deleteMany({ pedido: pedido._id }, { session })
+    })
     res.json({ msg: 'Pedido eliminado' })
   } catch (err) {
-    res.status(500).json({ msg: 'Error al eliminar pedido', error: err.message })
+    const code = err.message === 'Pedido no encontrado' ? 404 : 500
+    res.status(code).json({ msg: 'Error al eliminar pedido', error: err.message })
+  } finally {
+    session.endSession()
   }
 }

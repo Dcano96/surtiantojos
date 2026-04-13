@@ -768,9 +768,7 @@ const RolesList = () => {
       {/* ═══ ANIMATED BACKGROUND ═══ */}
       <Box sx={{
         position: "fixed", inset: 0, zIndex: -3, pointerEvents: "none",
-        background: "linear-gradient(-45deg, #FFF5EE, #FFE4D6, #FFDBC9, #FFE8DD, #FFF0EB, #FFF8F5)",
-        backgroundSize: "400% 400%",
-        animation: "sa-aurora 18s ease infinite",
+        background: "#F5F7FA",
       }} />
 
       {/* Dot grid overlay */}
