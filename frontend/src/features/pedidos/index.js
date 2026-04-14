@@ -1,1 +1,1 @@
-export { default as PedidoList, PedidosList } from './PedidoList'
+export { default as PedidosList, PedidoList } from './PedidoList'
