@@ -9,7 +9,7 @@ const router = Router()
 
 router.get('/', authMiddleware, getClientes)
 router.get('/:id', authMiddleware, getCliente)
-router.post('/', authMiddleware, crearCliente)
+router.post('/', crearCliente)                  // público — landing crea clientes automáticamente
 router.put('/:id', authMiddleware, actualizarCliente)
 router.patch('/:id/estado', authMiddleware, cambiarEstado)
 router.delete('/:id', authMiddleware, eliminarCliente)

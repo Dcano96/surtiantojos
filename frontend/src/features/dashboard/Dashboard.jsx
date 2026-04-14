@@ -9,13 +9,12 @@ import { UsuariosList } from "../usuarios"
 import { ProductosList } from "../productos"
 import { PedidosList } from "../pedidos"
 import { ClientesList } from "../clientes"
-import { VentasList } from "../ventas"
-import { DetallesVentasList } from "../detallesVentas"
+import { InventarioList } from "../inventario"
 import {
-  LayoutDashboard, Package, Tag, ShoppingCart, FileText,
+  LayoutDashboard, Package, Tag, ShoppingCart, Layers,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
   X, Menu, Bell, Search, TrendingUp, AlertCircle,
-  ChevronDown, User, ShoppingBag, BarChart2, DollarSign, UserCheck,
+  ChevronDown, User, ShoppingBag, BarChart2, UserCheck,
 } from "lucide-react"
 
 // ─── API base ──────────────────────────────────────────────────
@@ -594,8 +593,7 @@ const MOD_LABELS = {
   productos: "Productos",
   categorias: "Categorías",
   pedidos: "Pedidos",
-  ventas: "Ventas",
-  detallesVentas: "Detalles de Ventas",
+  inventario: "Inventario",
   clientes: "Clientes",
   roles: "Roles",
   usuarios: "Usuarios",
@@ -610,17 +608,11 @@ const NAV = [
   {
     sec: "Gestión",
     items: [
-      { id:"productos",  label:"Productos",   icon:Package       },
-      { id:"categorias", label:"Categorías",  icon:Tag           },
-      { id:"pedidos",    label:"Pedidos",     icon:ShoppingCart  },
-      { id:"clientes",   label:"Clientes",    icon:UserCheck     },
-    ],
-  },
-  {
-    sec: "Ventas",
-    items: [
-      { id:"ventas",         label:"Ventas",            icon:DollarSign },
-      { id:"detallesVentas", label:"Detalles de Ventas", icon:FileText   },
+      { id:"productos",   label:"Productos",   icon:Package      },
+      { id:"categorias",  label:"Categorías",  icon:Tag          },
+      { id:"pedidos",     label:"Pedidos",     icon:ShoppingCart },
+      { id:"clientes",    label:"Clientes",    icon:UserCheck    },
+      { id:"inventario",  label:"Inventario",  icon:Layers       },
     ],
   },
   {
@@ -1097,7 +1089,7 @@ export default function Dashboard() {
                 { ico:<Package size={14}/>,      bg:"rgba(255,204,2,0.14)",  lbl:"Producto 'Chip BBQ' agregado",   time:"Hace 45 min",  badge:"Activo",    bc:"badge-ok"   },
                 { ico:<Tag size={14}/>,          bg:"rgba(232,50,26,0.12)",  lbl:"Categoría 'Snacks' actualizada", time:"Hace 2h",      badge:"OK",        bc:"badge-ok"   },
                 { ico:<Users size={14}/>,        bg:"rgba(255,154,60,0.14)", lbl:"Nuevo usuario registrado",       time:"Hace 3h",      badge:"Activo",    bc:"badge-ok"   },
-                { ico:<FileText size={14}/>,     bg:"rgba(255,107,43,0.10)", lbl:"Reporte mensual generado",       time:"Hace 5h",      badge:"Listo",     bc:"badge-ok"   },
+                { ico:<Layers size={14}/>,       bg:"rgba(255,107,43,0.10)", lbl:"Inventario actualizado",          time:"Hace 5h",      badge:"Listo",     bc:"badge-ok"   },
               ].map((a,i) => (
                 <div className="sa-act-row" key={i}>
                   <div className="sa-act-ico" style={{ background:a.bg }}>{a.ico}</div>
@@ -1167,8 +1159,7 @@ export default function Dashboard() {
       case "categorias": return <CategoriasList />
       case "pedidos":    return <PedidosList />
       case "clientes":   return <ClientesList />
-      case "ventas":     return <VentasList />
-      case "detallesVentas": return <DetallesVentasList />
+      case "inventario": return <InventarioList />
       case "reportes":   return placeholder("reportes")
       case "roles":      return <RolesList />
       case "usuarios":   return <UsuariosList />

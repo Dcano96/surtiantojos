@@ -21,7 +21,7 @@ const router = Router()
 
 router.get('/', authMiddleware, getPedidos)
 router.get('/:id', authMiddleware, getPedido)
-router.post('/', authMiddleware, crearPedido)
+router.post('/', crearPedido)                   // público — landing crea pedidos sin token
 router.put('/:id', authMiddleware, actualizarPedido)
 router.delete('/:id', authMiddleware, eliminarPedido)
 

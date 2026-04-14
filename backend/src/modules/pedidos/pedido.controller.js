@@ -2,6 +2,10 @@ import mongoose from 'mongoose'
 import Pedido from './pedido.model.js'
 import DetallePedido from './detallePedido.model.js'
 import Producto from '../productos/producto.model.js'
+import {
+  procesarSalidaPorVenta,
+  procesarEntradaPorCancelacion,
+} from '../inventario/inventario.service.js'
 
 const calcularTotales = (detalles, descuento = 0, impuesto = 0) => {
   const subtotal = detalles.reduce((acc, d) => acc + d.subtotal, 0)
@@ -140,20 +144,49 @@ export const actualizarPedido = async (req, res) => {
 }
 
 export const cambiarEstado = async (req, res) => {
+  const session = await mongoose.startSession()
   try {
     const { estado, nota } = req.body
     const pedido = await Pedido.findById(req.params.id)
     if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
 
-    const { ok, msg } = Pedido.validarTransicion(pedido.estado, estado, pedido)
+    const estadoAnterior = pedido.estado
+    const { ok, msg } = Pedido.validarTransicion(estadoAnterior, estado, pedido)
     if (!ok) return res.status(400).json({ msg })
 
-    pedido.estado = estado
-    pedido.historialEstados.push({ estado, usuario: req.usuario?.id, nota })
-    await pedido.save()
+    const usuarioId = req.usuario?.id
+
+    // ── Detectar si hay que mover inventario ──────────────────────────────────
+    const pasaAConfirmado  = estado === 'confirmado' && estadoAnterior !== 'confirmado'
+    const pasaACancelado   = estado === 'cancelado'
+    // Solo devolver stock si el pedido ya había sido confirmado (el stock ya fue descontado)
+    const estabaConfirmado = ['confirmado', 'en_preparacion', 'enviado'].includes(estadoAnterior)
+
+    if (pasaAConfirmado || (pasaACancelado && estabaConfirmado)) {
+      await session.withTransaction(async () => {
+        const detalles = await DetallePedido.find({ pedido: pedido._id }).session(session)
+
+        if (pasaAConfirmado) {
+          await procesarSalidaPorVenta(pedido, detalles, usuarioId, session)
+        } else if (pasaACancelado && estabaConfirmado) {
+          await procesarEntradaPorCancelacion(pedido, detalles, usuarioId, session)
+        }
+
+        pedido.estado = estado
+        pedido.historialEstados.push({ estado, usuario: usuarioId, nota })
+        await pedido.save({ session })
+      })
+    } else {
+      pedido.estado = estado
+      pedido.historialEstados.push({ estado, usuario: usuarioId, nota })
+      await pedido.save()
+    }
+
     res.json(pedido)
   } catch (err) {
     res.status(400).json({ msg: 'Error al cambiar estado', error: err.message })
+  } finally {
+    session.endSession()
   }
 }
 
@@ -192,6 +225,7 @@ export const registrarComprobante = async (req, res) => {
 }
 
 export const verificarComprobante = async (req, res) => {
+  const session = await mongoose.startSession()
   try {
     const { aprobado, notas } = req.body
     const pedido = await Pedido.findById(req.params.id)
@@ -202,33 +236,50 @@ export const verificarComprobante = async (req, res) => {
     }
 
     const userId = req.usuario?.id
-    pedido.comprobantePago.verificado = !!aprobado
-    pedido.comprobantePago.verificadoPor = userId
-    pedido.comprobantePago.fechaVerificacion = new Date()
-    pedido.comprobantePago.notasVerificacion = notas
 
     if (aprobado) {
+      // Marcar comprobante como verificado ANTES de validar transición
+      pedido.comprobantePago.verificado = true
+      pedido.comprobantePago.verificadoPor = userId
+      pedido.comprobantePago.fechaVerificacion = new Date()
+      pedido.comprobantePago.notasVerificacion = notas
+
       const { ok, msg } = Pedido.validarTransicion(pedido.estado, 'confirmado', pedido)
       if (!ok) return res.status(400).json({ msg })
-      pedido.estado = 'confirmado'
-      pedido.historialEstados.push({
-        estado: 'confirmado',
-        usuario: userId,
-        nota: notas || 'Comprobante verificado y aprobado',
+
+      // Descontar stock dentro de la transacción
+      await session.withTransaction(async () => {
+        const detalles = await DetallePedido.find({ pedido: pedido._id }).session(session)
+        await procesarSalidaPorVenta(pedido, detalles, userId, session)
+
+        pedido.estado = 'confirmado'
+        pedido.historialEstados.push({
+          estado: 'confirmado',
+          usuario: userId,
+          nota: notas || 'Comprobante verificado y aprobado',
+        })
+        await pedido.save({ session })
       })
     } else {
+      pedido.comprobantePago.verificado = false
+      pedido.comprobantePago.verificadoPor = userId
+      pedido.comprobantePago.fechaVerificacion = new Date()
+      pedido.comprobantePago.notasVerificacion = notas
+
       pedido.estado = 'pendiente_pago'
       pedido.historialEstados.push({
         estado: 'pendiente_pago',
         usuario: userId,
         nota: notas || 'Comprobante rechazado, esperando nuevo comprobante',
       })
+      await pedido.save()
     }
 
-    await pedido.save()
     res.json(pedido)
   } catch (err) {
     res.status(400).json({ msg: 'Error al verificar comprobante', error: err.message })
+  } finally {
+    session.endSession()
   }
 }
 

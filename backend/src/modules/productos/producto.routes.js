@@ -11,8 +11,8 @@ import {
 
 const router = Router()
 
-router.get('/', authMiddleware, getProductos)
-router.get('/:id', authMiddleware, getProducto)
+router.get('/', getProductos)          // público — landing lo necesita sin token
+router.get('/:id', getProducto)        // público
 router.post('/', authMiddleware, crearProducto)
 router.put('/:id', authMiddleware, actualizarProducto)
 router.patch('/:id/estado', authMiddleware, cambiarEstadoProducto)
