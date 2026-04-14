@@ -43,6 +43,7 @@ if (typeof document !== "undefined" && !document.getElementById("sa-user-anims3d
     @keyframes sa-breathe{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1.07) translateY(-6px)}}
     @keyframes sa-glow-pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.75;transform:scale(1.18)}}
     @keyframes sa-pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2);opacity:0}}
+    @keyframes sa-border-glow{0%,100%{box-shadow:0 32px 80px rgba(0,0,0,0.16),0 0 0 1px rgba(255,255,255,0.15)}50%{box-shadow:0 32px 80px rgba(0,0,0,0.22),0 0 0 1px rgba(255,107,53,0.25)}}
   `
   document.head.appendChild(s)
 }
@@ -573,14 +574,24 @@ const VentasList = () => {
 
       {/* FORM DIALOG */}
       <Dialog open={openForm} onClose={() => setOpenForm(false)} maxWidth="md" fullWidth
-        PaperProps={{ sx: { borderRadius: T.rad, fontFamily: T.font, overflow: "hidden" } }}>
+        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+        slotProps={{ paper: { sx: {
+          borderRadius: "24px !important",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
+          border: "1px solid rgba(255,255,255,0.20)",
+          background: "rgba(255,255,255,0.92) !important",
+          backdropFilter: "blur(32px) saturate(200%)",
+          fontFamily: T.font,
+          overflow: "hidden",
+          animation: "sa-border-glow 3s ease-in-out infinite",
+        } } }}>
         <DlgHdr
           icon={<Receipt size={20} color="#fff" />}
           title={editing ? `Editar venta ${current?.numero || ""}` : "Nueva Venta"}
           sub={editing ? "Actualiza los datos de la venta" : "Registra una nueva venta en el sistema"}
           onClose={() => setOpenForm(false)}
         />
-        <DialogContent sx={{ p: 3, background: T.bg }}>
+        <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
           {!editing && (
             <>
               <Autocomplete
@@ -651,7 +662,7 @@ const VentasList = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: "18px 24px", background: T.bg, borderTop: "1px solid rgba(0,0,0,0.04)", gap: "10px" }}>
+        <DialogActions sx={{ p: "14px 26px 22px !important", background: "transparent", borderTop: "1px solid rgba(0,0,0,0.04)", gap: "10px" }}>
           <Button onClick={() => setOpenForm(false)} sx={cancelBtnSx}>Cancelar</Button>
           <Button onClick={save} sx={submitBtnSx}>{editing ? "Actualizar" : "Registrar Venta"}</Button>
         </DialogActions>
@@ -659,7 +670,17 @@ const VentasList = () => {
 
       {/* DETAIL DIALOG */}
       <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth
-        PaperProps={{ sx: { borderRadius: T.rad, fontFamily: T.font, overflow: "hidden" } }}>
+        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+        slotProps={{ paper: { sx: {
+          borderRadius: "24px !important",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
+          border: "1px solid rgba(255,255,255,0.20)",
+          background: "rgba(255,255,255,0.92) !important",
+          backdropFilter: "blur(32px) saturate(200%)",
+          fontFamily: T.font,
+          overflow: "hidden",
+          animation: "sa-border-glow 3s ease-in-out infinite",
+        } } }}>
         {current && (
           <>
             <DlgHdr
@@ -668,7 +689,7 @@ const VentasList = () => {
               sub={new Date(current.fechaVenta || current.createdAt).toLocaleString("es-CO")}
               onClose={() => setOpenDetail(false)}
             />
-            <DialogContent sx={{ p: 3, background: T.bg }}>
+            <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
               <Box sx={{ mb: 2 }}><EstadoPill estado={current.estado} /></Box>
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mb: 3 }}>
                 <Box sx={{ p: 2, ...glassCard, borderRadius: T.rad2 }}>
