@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react"
 import {
   Typography, TextField, Button, Dialog, DialogContent, DialogActions,
-  MenuItem, Box, InputAdornment, Tooltip, Switch, FormControlLabel,
+  MenuItem, Box, InputAdornment, Tooltip,
 } from "@mui/material"
 import {
   Edit2, Trash2, Eye, X, Search, CheckCircle, XCircle,
-  ArrowLeft, ArrowRight, Plus, Tag, FileText, ToggleLeft, ToggleRight,
+  ArrowLeft, ArrowRight, Plus, Tag, FileText,
 } from "lucide-react"
 import Swal from "sweetalert2"
 import categoriasService from "./categorias.service.js"
@@ -79,7 +79,6 @@ const actionBtn = {
 const btnEdit = { ...actionBtn, background: "rgba(34,197,94,0.10)", color: T.green, boxShadow: "0 2px 8px rgba(34,197,94,0.08)", "&:hover": { background: "rgba(34,197,94,0.18)", boxShadow: "0 6px 16px rgba(34,197,94,.20)", transform: "translateY(-2px)" } }
 const btnView = { ...actionBtn, background: "rgba(255,107,53,0.10)", color: T.o1, boxShadow: "0 2px 8px rgba(255,107,53,0.08)", "&:hover": { background: "rgba(255,107,53,0.18)", boxShadow: "0 6px 16px rgba(255,107,53,.20)", transform: "translateY(-2px)" } }
 const btnDel = { ...actionBtn, background: "rgba(239,68,68,0.08)", color: T.r1, boxShadow: "0 2px 8px rgba(239,68,68,0.06)", "&:hover": { background: "rgba(239,68,68,0.15)", boxShadow: "0 6px 16px rgba(239,68,68,.20)", transform: "translateY(-2px)" } }
-const btnToggle = { ...actionBtn, background: "rgba(245,158,11,0.10)", color: T.y1, boxShadow: "0 2px 8px rgba(245,158,11,0.08)", "&:hover": { background: "rgba(245,158,11,0.18)", boxShadow: "0 6px 16px rgba(245,158,11,.20)", transform: "translateY(-2px)" } }
 
 const cancelBtnSx = {
   fontFamily: `${T.font} !important`, fontWeight: "600 !important",
@@ -498,7 +497,7 @@ const CategoriasList = () => {
         boxShadow: T.shCard, border: "1px solid rgba(0,0,0,0.03)", mb: "18px",
       }}>
         {paginated.length > 0 && (
-          <Box sx={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 170px", px: "24px", py: "14px" }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 140px", px: "24px", py: "14px" }}>
             {["CATEGORÍA", "DESCRIPCIÓN", "ESTADO", "ACCIONES"].map(h => (
               <Typography key={h} sx={{
                 fontFamily: T.font, fontSize: ".68rem", fontWeight: 700,
@@ -512,7 +511,7 @@ const CategoriasList = () => {
         <Box sx={{ display: "flex", flexDirection: "column", gap: "6px", p: paginated.length > 0 ? "0 6px 6px" : "0" }}>
           {paginated.map((cat, i) => (
             <Box key={cat._id} sx={{
-              display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 170px",
+              display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 140px",
               alignItems: "center", p: "16px 22px", borderRadius: T.rad2,
               background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(250,248,246,0.95))",
               border: "1px solid rgba(0,0,0,0.03)",
@@ -551,23 +550,26 @@ const CategoriasList = () => {
                 </Typography>
               </Tooltip>
 
-              {/* Estado */}
+              {/* Estado — clickable toggle */}
               <Box sx={{ textAlign: "center" }}>
-                <Box component="span" sx={{
-                  display: "inline-flex", alignItems: "center", gap: "6px",
-                  padding: "5px 14px", borderRadius: "22px",
-                  fontFamily: T.font, fontSize: ".73rem", fontWeight: 600,
-                  ...(cat.estado
-                    ? { background: "rgba(34,197,94,0.08)", color: "#16A34A", boxShadow: "inset 0 1px 3px rgba(34,197,94,0.06)" }
-                    : { background: "rgba(239,68,68,0.06)", color: "#DC2626", boxShadow: "inset 0 1px 3px rgba(239,68,68,0.06)" }),
-                }}>
-                  <Box sx={{
-                    width: 7, height: 7, borderRadius: "50%",
-                    background: cat.estado ? "#22C55E" : "#EF4444",
-                    boxShadow: cat.estado ? "0 0 6px rgba(34,197,94,0.5)" : "0 0 6px rgba(239,68,68,0.5)",
-                  }} />
-                  {cat.estado ? "Activa" : "Inactiva"}
-                </Box>
+                <Tooltip title={cat.estado ? "Click para desactivar" : "Click para activar"} placement="top">
+                  <Box component="span" onClick={() => handleToggleEstado(cat)} sx={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    padding: "5px 14px", borderRadius: "22px", cursor: "pointer",
+                    fontFamily: T.font, fontSize: ".73rem", fontWeight: 600,
+                    transition: "all .25s ease",
+                    ...(cat.estado
+                      ? { background: "rgba(34,197,94,0.08)", color: "#16A34A", boxShadow: "inset 0 1px 3px rgba(34,197,94,0.06)", "&:hover": { background: "rgba(34,197,94,0.15)" } }
+                      : { background: "rgba(239,68,68,0.06)", color: "#DC2626", boxShadow: "inset 0 1px 3px rgba(239,68,68,0.06)", "&:hover": { background: "rgba(239,68,68,0.12)" } }),
+                  }}>
+                    <Box sx={{
+                      width: 7, height: 7, borderRadius: "50%",
+                      background: cat.estado ? "#22C55E" : "#EF4444",
+                      boxShadow: cat.estado ? "0 0 6px rgba(34,197,94,0.5)" : "0 0 6px rgba(239,68,68,0.5)",
+                    }} />
+                    {cat.estado ? "Activa" : "Inactiva"}
+                  </Box>
+                </Tooltip>
               </Box>
 
               {/* Acciones */}
@@ -577,11 +579,6 @@ const CategoriasList = () => {
                 </Tooltip>
                 <Tooltip title="Ver detalles" placement="top">
                   <Button sx={btnView} onClick={() => handleDetails(cat)}><Eye size={15} strokeWidth={2} /></Button>
-                </Tooltip>
-                <Tooltip title={cat.estado ? "Desactivar" : "Activar"} placement="top">
-                  <Button sx={btnToggle} onClick={() => handleToggleEstado(cat)}>
-                    {cat.estado ? <ToggleRight size={15} strokeWidth={2} /> : <ToggleLeft size={15} strokeWidth={2} />}
-                  </Button>
                 </Tooltip>
                 <Tooltip title={cat.estado ? "Desactiva primero para eliminar" : "Eliminar"} placement="top">
                   <Button sx={{ ...btnDel, ...(cat.estado ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}

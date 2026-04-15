@@ -12,9 +12,13 @@ const ESTADOS_PEDIDO = [
 
 const ClienteSchema = new mongoose.Schema({
   nombre: { type: String, required: true, trim: true },
+  apellido: { type: String, trim: true },
+  tipoDocumento: { type: String, enum: ['CC', 'CE', 'NIT', 'PAS', 'TI'], default: 'CC' },
+  documento: { type: String, required: true, trim: true },
   telefono: { type: String, required: true, trim: true },
   email: { type: String, trim: true, lowercase: true },
   direccion: { type: String, required: true, trim: true },
+  ciudad: { type: String, trim: true, default: 'Bogotá' },
 }, { _id: false })
 
 const ComprobantePagoSchema = new mongoose.Schema({
@@ -35,6 +39,7 @@ const ComprobantePagoSchema = new mongoose.Schema({
 const PedidoSchema = new mongoose.Schema({
   numero: { type: String, unique: true, index: true },
   cliente: { type: ClienteSchema, required: true },
+  clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cliente', index: true },
   usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' },
   atendidoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' },
 

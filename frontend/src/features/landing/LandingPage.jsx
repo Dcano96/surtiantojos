@@ -3,8 +3,6 @@ import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
 import {
   getProductosPublicos,
   crearPedidoPublico,
-  crearClientePublico,
-  buscarClientePorDocumento,
 } from "./landing.service.js"
 
 /* ── imágenes con ?url para que Vite las procese correctamente ── */
@@ -191,21 +189,22 @@ export default function LandingPage() {
     if (!validarForm()) return
     setEnviando(true); setError("")
     try {
-      let clienteId = null
-      try {
-        const ex = await buscarClientePorDocumento(form.documento.trim())
-        clienteId = ex ? ex._id : (await crearClientePublico({
-          tipoDocumento:"CC", documento:form.documento.trim(),
-          nombre:form.nombre.trim(), apellido:form.apellido.trim(),
-          telefono:form.telefono.trim(), email:form.email.trim(),
-          direccion:form.direccion.trim(), ciudad:form.ciudad||"Bogotá",
-        }))._id
-      } catch {/**/}
+      // El backend crea/actualiza el cliente automáticamente usando el documento
+      // y vincula el pedido con el clienteId resultante.
       const pedido = await crearPedidoPublico({
-        cliente:{nombre:`${form.nombre} ${form.apellido}`.trim(),telefono:form.telefono.trim(),email:form.email.trim(),direccion:form.direccion.trim(),ciudad:form.ciudad||"Bogotá"},
-        ...(clienteId&&{clienteId}),
-        items:carrito.map(i=>({producto:i.producto._id,cantidad:i.cantidad,precioUnitario:i.producto.precio})),
-        metodoPago, notas:`Landing. Pago: ${metodoPago}`,
+        cliente: {
+          nombre: form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          tipoDocumento: "CC",
+          documento: form.documento.trim(),
+          telefono: form.telefono.trim(),
+          email: form.email.trim(),
+          direccion: form.direccion.trim(),
+          ciudad: form.ciudad || "Bogotá",
+        },
+        items: carrito.map(i => ({ producto: i.producto._id, cantidad: i.cantidad, precioUnitario: i.producto.precio })),
+        metodoPago,
+        notas: `Landing. Pago: ${metodoPago}`,
       })
       setPedidoCreado(pedido); setCheckoutStep(4)
     } catch(e) {

@@ -2,10 +2,36 @@ import mongoose from 'mongoose'
 import Pedido from './pedido.model.js'
 import DetallePedido from './detallePedido.model.js'
 import Producto from '../productos/producto.model.js'
+import Cliente from '../clientes/cliente.model.js'
 import {
   procesarSalidaPorVenta,
   procesarEntradaPorCancelacion,
 } from '../inventario/inventario.service.js'
+
+// Crea o actualiza un cliente a partir de los datos recibidos en el pedido.
+// Si el cliente ya existe (mismo documento), actualiza sus datos.
+const upsertClienteDesdePedido = async (clienteData, session) => {
+  const documento = String(clienteData?.documento || '').trim()
+  if (!documento) {
+    throw new Error('El documento del cliente es obligatorio')
+  }
+
+  const datos = {
+    tipoDocumento: clienteData.tipoDocumento || 'CC',
+    documento,
+    nombre: (clienteData.nombre || '').trim(),
+    apellido: (clienteData.apellido || '').trim(),
+    telefono: (clienteData.telefono || '').trim(),
+    email: (clienteData.email || '').trim().toLowerCase(),
+    direccion: (clienteData.direccion || '').trim(),
+    ciudad: (clienteData.ciudad || 'Bogotá').trim(),
+  }
+
+  const opts = session ? { session, new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+                       : { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+  const cliente = await Cliente.findOneAndUpdate({ documento }, { $set: datos }, opts)
+  return cliente
+}
 
 const calcularTotales = (detalles, descuento = 0, impuesto = 0) => {
   const subtotal = detalles.reduce((acc, d) => acc + d.subtotal, 0)
@@ -48,6 +74,7 @@ export const getPedidos = async (req, res) => {
     const pedidos = await Pedido.find(filtro)
       .populate('usuario', 'nombre email')
       .populate('atendidoPor', 'nombre email')
+      .populate('clienteId')
       .populate('detalles')
       .sort({ createdAt: -1 })
     res.json(pedidos)
@@ -61,6 +88,7 @@ export const getPedido = async (req, res) => {
     const pedido = await Pedido.findById(req.params.id)
       .populate('usuario', 'nombre email')
       .populate('atendidoPor', 'nombre email')
+      .populate('clienteId')
       .populate('comprobantePago.verificadoPor', 'nombre email')
       .populate({ path: 'detalles', populate: { path: 'producto', select: 'nombre precio imagen' } })
     if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
@@ -77,6 +105,9 @@ export const crearPedido = async (req, res) => {
     if (!cliente?.nombre || !cliente?.telefono || !cliente?.direccion) {
       return res.status(400).json({ msg: 'Datos del cliente incompletos (nombre, teléfono, dirección)' })
     }
+    if (!cliente?.documento?.trim()) {
+      return res.status(400).json({ msg: 'El documento del cliente es obligatorio' })
+    }
 
     const detallesPlanos = await construirDetalles(items)
     const { subtotal, total } = calcularTotales(detallesPlanos, descuento, impuesto)
@@ -84,8 +115,24 @@ export const crearPedido = async (req, res) => {
     const userId = req.usuario?.id
     let pedidoCreado
     await session.withTransaction(async () => {
+      // Registrar/actualizar cliente en la tabla Clientes
+      const clienteDoc = await upsertClienteDesdePedido(cliente, session)
+
+      // Preparar snapshot del cliente para guardar embebido en el pedido
+      const clienteSnap = {
+        nombre: clienteDoc.nombre,
+        apellido: clienteDoc.apellido,
+        tipoDocumento: clienteDoc.tipoDocumento,
+        documento: clienteDoc.documento,
+        telefono: clienteDoc.telefono,
+        email: clienteDoc.email,
+        direccion: clienteDoc.direccion,
+        ciudad: clienteDoc.ciudad,
+      }
+
       const [pedido] = await Pedido.create([{
-        cliente,
+        cliente: clienteSnap,
+        clienteId: clienteDoc._id,
         usuario: userId,
         atendidoPor: userId,
         subtotal,
@@ -106,6 +153,7 @@ export const crearPedido = async (req, res) => {
 
     const completo = await Pedido.findById(pedidoCreado._id)
       .populate('usuario', 'nombre email')
+      .populate('clienteId')
       .populate('detalles')
     res.status(201).json(completo)
   } catch (err) {
