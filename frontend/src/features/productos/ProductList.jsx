@@ -191,8 +191,8 @@ const ProductosList = () => {
   const [editingId, setEditingId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [selectedProd, setSelectedProd] = useState(null)
-  const [formData, setFormData] = useState({ nombre: "", descripcion: "", precio: "", stock: "", categoria: "", imagen: "", estado: true })
-  const [formErrors, setFormErrors] = useState({ nombre: "", precio: "", stock: "" })
+  const [formData, setFormData] = useState({ nombre: "", descripcion: "", precio: "", stockInicial: "", stockMinimo: "", unidadMedida: "unidad", categoria: "", imagen: "", estado: true })
+  const [formErrors, setFormErrors] = useState({ nombre: "", precio: "", stockInicial: "" })
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategoria, setFilterCategoria] = useState("")
   const [page, setPage] = useState(0)
@@ -222,28 +222,31 @@ const ProductosList = () => {
 
   // Abrir modal crear/editar
   const handleOpen = (prod) => {
-    setFormErrors({ nombre: "", precio: "", stock: "" })
+    setFormErrors({ nombre: "", precio: "", stockInicial: "" })
     if (prod) {
+      // Edición: el stock NO se edita aquí, solo metadatos del producto
       setFormData({
         nombre: prod.nombre,
         descripcion: prod.descripcion || "",
         precio: prod.precio,
-        stock: prod.stock,
+        stockInicial: "",      // No aplica en edición
+        stockMinimo: prod.stockMinimo ?? "",
+        unidadMedida: prod.unidadMedida || "unidad",
         categoria: prod.categoria?._id || prod.categoria || "",
         imagen: prod.imagen || "",
         estado: prod.estado,
       })
       setEditingId(prod._id)
     } else {
-      setFormData({ nombre: "", descripcion: "", precio: "", stock: "", categoria: "", imagen: "", estado: true })
+      setFormData({ nombre: "", descripcion: "", precio: "", stockInicial: "", stockMinimo: "", unidadMedida: "unidad", categoria: "", imagen: "", estado: true })
       setEditingId(null)
     }
     setOpen(true)
   }
   const handleClose = () => {
     setOpen(false); setEditingId(null)
-    setFormData({ nombre: "", descripcion: "", precio: "", stock: "", categoria: "", imagen: "", estado: true })
-    setFormErrors({ nombre: "", precio: "", stock: "" })
+    setFormData({ nombre: "", descripcion: "", precio: "", stockInicial: "", stockMinimo: "", unidadMedida: "unidad", categoria: "", imagen: "", estado: true })
+    setFormErrors({ nombre: "", precio: "", stockInicial: "" })
   }
 
   // Abrir detalle
@@ -255,7 +258,7 @@ const ProductosList = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
     if (name === "nombre") validateNombre(value)
     if (name === "precio") validatePrecio(value)
-    if (name === "stock") validateStock(value)
+    if (name === "stockInicial") validateStockInicial(value)
   }
 
   const validateNombre = (value) => {
@@ -278,13 +281,15 @@ const ProductosList = () => {
     return !err
   }
 
-  const validateStock = (value) => {
+  const validateStockInicial = (value) => {
+    // Solo obligatorio en creación
+    if (editingId) return true
     let err = ""
     const n = Number(value)
-    if (value === "" || value === null || value === undefined) err = "El stock es obligatorio"
+    if (value === "" || value === null || value === undefined) err = "El stock inicial es obligatorio"
     else if (isNaN(n) || n < 0) err = "Stock inválido"
     else if (!Number.isInteger(n)) err = "El stock debe ser un número entero"
-    setFormErrors(prev => ({ ...prev, stock: err }))
+    setFormErrors(prev => ({ ...prev, stockInicial: err }))
     return !err
   }
 
@@ -292,21 +297,38 @@ const ProductosList = () => {
   const handleSubmit = async () => {
     const vN = validateNombre(formData.nombre)
     const vP = validatePrecio(formData.precio)
-    const vS = validateStock(formData.stock)
+    const vS = editingId ? true : validateStockInicial(formData.stockInicial)
     if (!vN || !vP || !vS) return
     if (!formData.categoria) {
       await swalFire({ ...SW, icon: "warning", title: "Categoría requerida", text: "Selecciona una categoría para el producto." })
       return
     }
     try {
-      const payload = {
-        ...formData,
-        precio: Number(formData.precio),
-        stock: Number(formData.stock),
-      }
       if (editingId) {
+        // En edición: nunca enviar stock, solo metadatos
+        const payload = {
+          nombre: formData.nombre,
+          descripcion: formData.descripcion,
+          precio: Number(formData.precio),
+          stockMinimo: Number(formData.stockMinimo) || 0,
+          unidadMedida: formData.unidadMedida,
+          categoria: formData.categoria,
+          imagen: formData.imagen,
+          estado: formData.estado,
+        }
         await productosService.updateProducto(editingId, payload)
       } else {
+        // En creación: enviar stockInicial para que el backend genere el movimiento
+        const payload = {
+          nombre: formData.nombre,
+          descripcion: formData.descripcion,
+          precio: Number(formData.precio),
+          stockInicial: Number(formData.stockInicial) || 0,
+          stockMinimo: Number(formData.stockMinimo) || 0,
+          unidadMedida: formData.unidadMedida,
+          categoria: formData.categoria,
+          imagen: formData.imagen,
+        }
         await productosService.createProducto(payload)
       }
       handleClose()
@@ -559,21 +581,21 @@ const ProductosList = () => {
 
               {/* Stock */}
               <Box sx={{ textAlign: "center" }}>
-                {prod.stock <= STOCK_LOW ? (
-                  <Tooltip title={`Stock bajo (${prod.stock} unidades)`} placement="top">
-                    <Box component="span" sx={{
-                      display: "inline-flex", alignItems: "center", gap: "4px",
-                      padding: "4px 10px", borderRadius: "10px",
-                      background: "rgba(239,68,68,0.08)", color: "#DC2626",
-                      fontFamily: T.font, fontSize: ".80rem", fontWeight: 700,
-                    }}>
-                      <AlertTriangle size={13} strokeWidth={2.5} />
-                      {prod.stock}
+                {prod.stock === 0 ? (
+                  <Tooltip title="Sin existencias" placement="top">
+                    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "10px", background: "rgba(239,68,68,0.08)", color: "#DC2626", fontFamily: T.font, fontSize: ".80rem", fontWeight: 700 }}>
+                      <AlertTriangle size={13} strokeWidth={2.5} /> 0
+                    </Box>
+                  </Tooltip>
+                ) : prod.stock <= (prod.stockMinimo || STOCK_LOW) ? (
+                  <Tooltip title={`Stock bajo — mínimo: ${prod.stockMinimo || STOCK_LOW}`} placement="top">
+                    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "10px", background: "rgba(245,158,11,0.10)", color: "#D97706", fontFamily: T.font, fontSize: ".80rem", fontWeight: 700 }}>
+                      <AlertTriangle size={13} strokeWidth={2.5} /> {prod.stock}
                     </Box>
                   </Tooltip>
                 ) : (
                   <Typography sx={{ fontFamily: T.font, fontWeight: 600, fontSize: ".85rem", color: T.green }}>
-                    {prod.stock}
+                    {prod.stock} <span style={{ fontSize: ".70rem", color: "#9CA3AF" }}>{prod.unidadMedida || ""}</span>
                   </Typography>
                 )}
               </Box>
@@ -744,16 +766,49 @@ const ProductosList = () => {
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><DollarSign size={14} color={T.t3} /></InputAdornment> } }}
             />
-            <TextField margin="dense" label="Stock" name="stock" type="number"
-              value={formData.stock} onChange={handleChange}
-              onBlur={e => validateStock(e.target.value)}
-              variant="outlined" size="small" required
-              error={!!formErrors.stock}
-              helperText={formErrors.stock || "Unidades disponibles"}
+            {/* Stock inicial solo en creación — en edición se gestiona desde inventario */}
+            <Box sx={{ minHeight: "40px" }}>
+              {!editingId ? (
+                <TextField margin="dense" label="Stock inicial *" name="stockInicial" type="number"
+                  value={formData.stockInicial} onChange={handleChange}
+                  onBlur={e => validateStockInicial(e.target.value)}
+                  variant="outlined" size="small" required fullWidth
+                  error={!!formErrors.stockInicial}
+                  helperText={formErrors.stockInicial || "Unidades con las que inicia"}
+                  inputProps={{ min: 0, step: 1 }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Package size={14} color={T.t3} /></InputAdornment> } }}
+                />
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(59,130,246,0.06)", borderRadius: "14px", p: "10px 16px", border: "1px solid rgba(59,130,246,0.12)", height: "100%" }}>
+                  <Package size={14} color="#3B82F6" />
+                  <Box component="span" sx={{ fontFamily: T.font, fontSize: ".78rem", color: "#3B82F6" }}>
+                    Stock actual: <strong>{selectedProd?.stock ?? "—"}</strong>. Para modificarlo usa el módulo de Inventario.
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
+            <TextField margin="dense" label="Stock mínimo" name="stockMinimo" type="number"
+              value={formData.stockMinimo} onChange={handleChange}
+              variant="outlined" size="small"
+              helperText="Alerta cuando el stock baje de este nivel"
               inputProps={{ min: 0, step: 1 }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><Package size={14} color={T.t3} /></InputAdornment> } }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><AlertTriangle size={14} color={T.t3} /></InputAdornment> } }}
             />
+            <TextField select margin="dense" label="Unidad de medida" name="unidadMedida"
+              value={formData.unidadMedida} onChange={handleChange}
+              variant="outlined" size="small"
+              helperText="Tipo de unidad del producto"
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+            >
+              {["unidad", "paquete", "caja", "bolsa", "litro", "kilogramo", "gramo", "otro"].map(u => (
+                <MenuItem key={u} value={u} sx={{ fontFamily: T.font, textTransform: "capitalize" }}>{u}</MenuItem>
+              ))}
+            </TextField>
           </Box>
 
           <TextField margin="dense" label="URL de Imagen" name="imagen"
@@ -782,10 +837,13 @@ const ProductosList = () => {
         <DialogActions sx={{ p: "14px 26px 20px !important", gap: "10px" }}>
           <Button onClick={handleClose} sx={cancelBtnSx}>Cancelar</Button>
           <Button onClick={handleSubmit}
-            disabled={!!formErrors.nombre || !!formErrors.precio || !!formErrors.stock || !formData.nombre.trim() || !formData.categoria}
+            disabled={!!formErrors.nombre || !!formErrors.precio || !!formErrors.stockInicial || !formData.nombre.trim() || !formData.categoria}
             sx={submitBtnSx}>
-            {editingId ? <Edit2 size={14} /> : <Plus size={14} />}
-            {editingId ? "Guardar Cambios" : "Crear Producto"}
+            {editingId ? (
+              <><Edit2 size={14} /> Guardar Cambios</>
+            ) : (
+              <><Plus size={14} /> Crear Producto</>
+            )}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,5 +1,6 @@
 import Producto from './producto.model.js'
 import Categoria from '../categorias/categoria.model.js'
+import MovimientoInventario from '../inventario/movimientoInventario.model.js'
 
 // Obtener todos los productos
 export const getProductos = async (req, res) => {
@@ -29,7 +30,7 @@ export const getProducto = async (req, res) => {
 // Crear producto
 export const crearProducto = async (req, res) => {
   try {
-    const { nombre, categoria } = req.body
+    const { nombre, categoria, stockInicial, stockMinimo, unidadMedida, ...resto } = req.body
 
     // Validar que no exista otro producto con el mismo nombre en la misma categoría
     if (nombre && categoria) {
@@ -53,8 +54,32 @@ export const crearProducto = async (req, res) => {
       }
     }
 
-    const producto = new Producto(req.body)
+    // Crear el producto con stock en 0 — el stock se maneja via inventario
+    const stockInicialNum = Number(stockInicial) || 0
+    const producto = new Producto({
+      ...resto,
+      nombre,
+      categoria,
+      stockMinimo: Number(stockMinimo) || 0,
+      unidadMedida: unidadMedida || 'unidad',
+      stock: stockInicialNum,
+    })
     await producto.save()
+
+    // Si se especificó stock inicial, registrar el movimiento de entrada
+    if (stockInicialNum > 0) {
+      await MovimientoInventario.create({
+        productoId: producto._id,
+        tipo: 'entrada',
+        cantidad: stockInicialNum,
+        unidad_medida: unidadMedida || 'unidad',
+        motivo: 'compra',
+        nota: 'Stock inicial al crear el producto',
+        usuarioId: req.usuario?.id || null,
+        fecha: new Date(),
+      })
+    }
+
     await producto.populate('categoria', 'nombre estado')
     res.status(201).json({ ok: true, data: producto, message: 'Producto creado correctamente' })
   } catch (err) {
@@ -68,7 +93,19 @@ export const crearProducto = async (req, res) => {
 // Actualizar producto
 export const actualizarProducto = async (req, res) => {
   try {
-    const { nombre, categoria } = req.body
+    const { nombre, categoria, stockMinimo, unidadMedida, descripcion, precio, imagen, estado } = req.body
+
+    // El stock NO se puede modificar directamente — solo via inventario
+    // Se construye el payload explícitamente para excluir el campo stock
+    const updatePayload = {}
+    if (nombre !== undefined) updatePayload.nombre = nombre
+    if (descripcion !== undefined) updatePayload.descripcion = descripcion
+    if (precio !== undefined) updatePayload.precio = precio
+    if (imagen !== undefined) updatePayload.imagen = imagen
+    if (estado !== undefined) updatePayload.estado = estado
+    if (stockMinimo !== undefined) updatePayload.stockMinimo = stockMinimo
+    if (unidadMedida !== undefined) updatePayload.unidadMedida = unidadMedida
+    if (categoria !== undefined) updatePayload.categoria = categoria
 
     // Validar duplicado de nombre en la misma categoría
     if (nombre && categoria) {
@@ -93,7 +130,7 @@ export const actualizarProducto = async (req, res) => {
       }
     }
 
-    const producto = await Producto.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const producto = await Producto.findByIdAndUpdate(req.params.id, updatePayload, { new: true, runValidators: true })
       .populate('categoria', 'nombre estado')
     if (!producto) {
       return res.status(404).json({ ok: false, data: null, message: 'Producto no encontrado' })

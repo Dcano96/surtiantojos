@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Typography, TextField, Button, Dialog, DialogContent, DialogActions,
-  MenuItem, Box, InputAdornment, Tooltip, Chip,
+  MenuItem, Box, InputAdornment, Tooltip,
 } from "@mui/material"
 import {
   Edit2, Trash2, Eye, X, Search, CheckCircle, XCircle,
@@ -41,13 +41,11 @@ const T = {
 
 /* Estados y configuración visual */
 const ESTADOS = {
-  pendiente_pago:        { label: "Pendiente de pago",      color: T.y1,     bg: "rgba(245,158,11,0.12)",  icon: Clock },
-  comprobante_recibido:  { label: "Comprobante recibido",   color: T.blue,   bg: "rgba(59,130,246,0.12)",  icon: FileText },
-  confirmado:            { label: "Confirmado",             color: T.green,  bg: "rgba(34,197,94,0.12)",   icon: CheckCircle },
-  en_preparacion:        { label: "En preparación",         color: T.purple, bg: "rgba(139,92,246,0.12)",  icon: Package },
-  enviado:               { label: "Enviado",                color: T.o1,     bg: "rgba(255,107,53,0.12)",  icon: Truck },
-  entregado:             { label: "Entregado",              color: T.green,  bg: "rgba(34,197,94,0.18)",   icon: CheckCircle },
-  cancelado:             { label: "Cancelado",              color: T.r1,     bg: "rgba(239,68,68,0.12)",   icon: XCircle },
+  pendiente:       { label: "Pendiente",        color: T.y1,    bg: "rgba(245,158,11,0.12)",  icon: Clock },
+  pago_verificado: { label: "Pago verificado",  color: T.blue,  bg: "rgba(59,130,246,0.12)",  icon: ShieldCheck },
+  despachado:      { label: "Despachado",       color: T.purple,bg: "rgba(139,92,246,0.12)",  icon: Truck },
+  entregado:       { label: "Entregado",        color: T.green, bg: "rgba(34,197,94,0.18)",   icon: CheckCircle },
+  cancelado:       { label: "Cancelado",        color: T.r1,    bg: "rgba(239,68,68,0.12)",   icon: XCircle },
 }
 
 const METODOS_PAGO = [
@@ -613,9 +611,8 @@ const PedidoList = () => {
 
   const siguienteEstado = (estado) => {
     const map = {
-      confirmado: "en_preparacion",
-      en_preparacion: "enviado",
-      enviado: "entregado",
+      pago_verificado: "despachado",
+      despachado:      "entregado",
     }
     return map[estado]
   }
@@ -943,12 +940,12 @@ const PedidoList = () => {
                     <Tooltip title="Ver detalle" placement="top">
                       <Button sx={btnView} onClick={() => openView(p)}><Eye size={15} strokeWidth={2} /></Button>
                     </Tooltip>
-                    {["pendiente_pago", "comprobante_recibido"].includes(p.estado) && (
+                    {p.estado === "pendiente" && (
                       <Tooltip title="Registrar comprobante" placement="top">
                         <Button sx={btnPay} onClick={() => openComprobanteDialog(p)}><CreditCard size={15} strokeWidth={2} /></Button>
                       </Tooltip>
                     )}
-                    {p.estado === "comprobante_recibido" && !verificado && (
+                    {p.estado === "pendiente" && hasComprobante && !verificado && (
                       <Tooltip title="Verificar comprobante" placement="top">
                         <Button sx={btnVerify} onClick={() => openVerificarDialog(p)}><ShieldCheck size={15} strokeWidth={2} /></Button>
                       </Tooltip>
@@ -1028,9 +1025,7 @@ const PedidoList = () => {
       )}
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <AnimatePresence>
-        {openForm && (
-          <Dialog open={openForm} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenForm(false) }}
+      <Dialog open={openForm} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenForm(false) }}
             fullWidth maxWidth="md"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1051,7 +1046,7 @@ const PedidoList = () => {
             />
 
             <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
-              <Typography sx={{
+              <Box sx={{
                 display: "flex", alignItems: "center", gap: "10px",
                 fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
                 color: T.t1, mb: "14px", pb: "10px",
@@ -1061,7 +1056,7 @@ const PedidoList = () => {
                   <User size={13} color={T.o1} />
                 </Box>
                 Datos del cliente
-              </Typography>
+              </Box>
 
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mb: 3 }}>
                 <TextField label="Nombre *" sx={fieldSx} size="small"
@@ -1169,7 +1164,7 @@ const PedidoList = () => {
               }}>
                 <AlertTriangle size={18} color={T.y1} style={{ flexShrink: 0, marginTop: 2 }} />
                 <Typography sx={{ fontFamily: T.font, fontSize: ".82rem", color: T.t2 }}>
-                  El pedido iniciará en estado <b>"Pendiente de pago"</b>. No podrá pasar a <b>"Confirmado"</b> hasta que se registre y verifique el comprobante de pago enviado por WhatsApp.
+                  El pedido iniciará en estado <b>"Pendiente"</b>. No pasará a <b>"Pago verificado"</b> hasta que el administrador registre y apruebe el comprobante de pago.
                 </Typography>
               </Box>
             </DialogContent>
@@ -1186,13 +1181,9 @@ const PedidoList = () => {
               </Button>
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
       {/* ═══ MODAL DETALLE ═══ */}
-      <AnimatePresence>
-        {openDetail && (
-          <Dialog open={openDetail} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenDetail(false) }}
+      <Dialog open={openDetail} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenDetail(false) }}
             fullWidth maxWidth="md"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1313,13 +1304,9 @@ const PedidoList = () => {
               </>
             )}
           </Dialog>
-        )}
-      </AnimatePresence>
 
       {/* ═══ MODAL COMPROBANTE ═══ */}
-      <AnimatePresence>
-        {openComprobante && (
-          <Dialog open={openComprobante} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenComprobante(false) }}
+      <Dialog open={openComprobante} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenComprobante(false) }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1369,13 +1356,9 @@ const PedidoList = () => {
               <Button onClick={saveComprobante} sx={submitBtnSx}>Registrar</Button>
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
       {/* ═══ MODAL VERIFICAR ═══ */}
-      <AnimatePresence>
-        {openVerificar && (
-          <Dialog open={openVerificar} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenVerificar(false) }}
+      <Dialog open={openVerificar} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenVerificar(false) }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1421,7 +1404,7 @@ const PedidoList = () => {
                     display: "flex", flexDirection: "column", gap: .5,
                     backdropFilter: "blur(12px)",
                   }}>
-                  <CheckCircle size={22} /> Aprobar<Box sx={{ fontSize: ".72rem", fontWeight: 500 }}>Pedido → Confirmado</Box>
+                  <CheckCircle size={22} /> Aprobar<Box component="span" sx={{ fontSize: ".72rem", fontWeight: 500, display: "block" }}>Pedido → Confirmado</Box>
                 </Button>
                 <Button
                   onClick={() => setVerifyForm({ ...verifyForm, aprobado: false })}
@@ -1433,7 +1416,7 @@ const PedidoList = () => {
                     display: "flex", flexDirection: "column", gap: .5,
                     backdropFilter: "blur(12px)",
                   }}>
-                  <ShieldAlert size={22} /> Rechazar<Box sx={{ fontSize: ".72rem", fontWeight: 500 }}>Vuelve a Pendiente</Box>
+                  <ShieldAlert size={22} /> Rechazar<Box component="span" sx={{ fontSize: ".72rem", fontWeight: 500, display: "block" }}>Vuelve a Pendiente</Box>
                 </Button>
               </Box>
 
@@ -1453,8 +1436,6 @@ const PedidoList = () => {
               </Button>
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
     </Box>
   )
 }

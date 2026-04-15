@@ -50,8 +50,18 @@ const construirDetalles = async (items = []) => {
   return items.map((item) => {
     const p = mapa.get(String(item.producto))
     if (!p) throw new Error(`Producto no encontrado: ${item.producto}`)
+    if (!p.estado) throw new Error(`El producto "${p.nombre}" está inactivo y no puede ser pedido`)
+
     const cantidad = Number(item.cantidad) || 0
-    if (cantidad < 1) throw new Error(`Cantidad inválida para ${p.nombre}`)
+    if (cantidad < 1) throw new Error(`Cantidad inválida para "${p.nombre}"`)
+
+    // Validar stock disponible al momento de crear el pedido
+    if (p.stock < cantidad) {
+      throw new Error(
+        `Stock insuficiente para "${p.nombre}". Disponible: ${p.stock} ${p.unidadMedida || 'unidad'}(s), solicitado: ${cantidad}`
+      )
+    }
+
     const precioUnitario = item.precioUnitario != null ? Number(item.precioUnitario) : p.precio
     const descuento = Number(item.descuento) || 0
     const subtotal = Math.max(0, cantidad * precioUnitario - descuento)
@@ -139,8 +149,8 @@ export const crearPedido = async (req, res) => {
         descuento,
         impuesto,
         total,
-        estado: 'pendiente_pago',
-        historialEstados: [{ estado: 'pendiente_pago', usuario: userId, nota: 'Pedido creado, esperando comprobante de pago por WhatsApp' }],
+        estado: 'pendiente',
+        historialEstados: [{ estado: 'pendiente', usuario: userId, nota: 'Pedido creado, esperando comprobante de pago' }],
         comprobantePago: comprobantePago || {},
         fechaEntrega,
         notas,
@@ -205,18 +215,19 @@ export const cambiarEstado = async (req, res) => {
     const usuarioId = req.usuario?.id
 
     // ── Detectar si hay que mover inventario ──────────────────────────────────
-    const pasaAConfirmado  = estado === 'confirmado' && estadoAnterior !== 'confirmado'
-    const pasaACancelado   = estado === 'cancelado'
-    // Solo devolver stock si el pedido ya había sido confirmado (el stock ya fue descontado)
-    const estabaConfirmado = ['confirmado', 'en_preparacion', 'enviado'].includes(estadoAnterior)
+    // El stock se descuenta al pasar a pago_verificado (comprobante aprobado)
+    const pasaAPagoVerificado = estado === 'pago_verificado' && estadoAnterior !== 'pago_verificado'
+    const pasaACancelado = estado === 'cancelado'
+    // Solo devolver stock si ya fue descontado (pago_verificado o despachado)
+    const estabaConStockDescontado = ['pago_verificado', 'despachado'].includes(estadoAnterior)
 
-    if (pasaAConfirmado || (pasaACancelado && estabaConfirmado)) {
+    if (pasaAPagoVerificado || (pasaACancelado && estabaConStockDescontado)) {
       await session.withTransaction(async () => {
         const detalles = await DetallePedido.find({ pedido: pedido._id }).session(session)
 
-        if (pasaAConfirmado) {
+        if (pasaAPagoVerificado) {
           await procesarSalidaPorVenta(pedido, detalles, usuarioId, session)
-        } else if (pasaACancelado && estabaConfirmado) {
+        } else if (pasaACancelado && estabaConStockDescontado) {
           await procesarEntradaPorCancelacion(pedido, detalles, usuarioId, session)
         }
 
@@ -256,12 +267,11 @@ export const registrarComprobante = async (req, res) => {
       notasVerificacion: undefined,
     }
 
-    if (pedido.estado === 'pendiente_pago') {
-      pedido.estado = 'comprobante_recibido'
+    if (pedido.estado === 'pendiente') {
       pedido.historialEstados.push({
-        estado: 'comprobante_recibido',
+        estado: 'pendiente',
         usuario: req.usuario?.id,
-        nota: 'Comprobante de pago recibido, pendiente de verificación',
+        nota: 'Comprobante de pago registrado, pendiente de verificación por el administrador',
       })
     }
 
@@ -292,7 +302,7 @@ export const verificarComprobante = async (req, res) => {
       pedido.comprobantePago.fechaVerificacion = new Date()
       pedido.comprobantePago.notasVerificacion = notas
 
-      const { ok, msg } = Pedido.validarTransicion(pedido.estado, 'confirmado', pedido)
+      const { ok, msg } = Pedido.validarTransicion(pedido.estado, 'pago_verificado', pedido)
       if (!ok) return res.status(400).json({ msg })
 
       // Descontar stock dentro de la transacción
@@ -300,25 +310,27 @@ export const verificarComprobante = async (req, res) => {
         const detalles = await DetallePedido.find({ pedido: pedido._id }).session(session)
         await procesarSalidaPorVenta(pedido, detalles, userId, session)
 
-        pedido.estado = 'confirmado'
+        pedido.estado = 'pago_verificado'
         pedido.historialEstados.push({
-          estado: 'confirmado',
+          estado: 'pago_verificado',
           usuario: userId,
-          nota: notas || 'Comprobante verificado y aprobado',
+          nota: notas || 'Comprobante verificado y aprobado — pedido listo para despachar',
         })
         await pedido.save({ session })
       })
     } else {
+      // Comprobante rechazado — pedido permanece pendiente, se limpia el comprobante
       pedido.comprobantePago.verificado = false
       pedido.comprobantePago.verificadoPor = userId
       pedido.comprobantePago.fechaVerificacion = new Date()
       pedido.comprobantePago.notasVerificacion = notas
+      pedido.comprobantePago.url = undefined
+      pedido.comprobantePago.referencia = undefined
 
-      pedido.estado = 'pendiente_pago'
       pedido.historialEstados.push({
-        estado: 'pendiente_pago',
+        estado: 'pendiente',
         usuario: userId,
-        nota: notas || 'Comprobante rechazado, esperando nuevo comprobante',
+        nota: notas || 'Comprobante rechazado — se solicitó nuevo comprobante al cliente',
       })
       await pedido.save()
     }

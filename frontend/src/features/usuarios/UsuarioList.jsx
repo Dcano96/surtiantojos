@@ -935,9 +935,7 @@ const UsuariosList = () => {
       </MotionBox>
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <AnimatePresence>
-        {open && (
-          <Dialog key={editingId || '__create__'} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
+      <Dialog key={editingId || '__create__'} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1128,13 +1126,9 @@ const UsuariosList = () => {
               </Button>
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
       {/* ═══ MODAL DETALLES ═══ */}
-      <AnimatePresence>
-        {detailsOpen && (
-          <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
+      <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1247,8 +1241,6 @@ const UsuariosList = () => {
               )}
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
     </Box>
   )

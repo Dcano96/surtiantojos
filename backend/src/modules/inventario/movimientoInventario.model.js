@@ -29,6 +29,14 @@ const MovimientoInventarioSchema = new mongoose.Schema(
       enum: ['venta', 'compra', 'ajuste'],
       required: true,
     },
+    nota: {
+      type: String,
+      trim: true,
+    },
+    proveedor: {
+      type: String,
+      trim: true,
+    },
     referenciaId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Pedido',

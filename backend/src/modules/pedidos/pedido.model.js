@@ -1,13 +1,11 @@
 import mongoose from 'mongoose'
 
 const ESTADOS_PEDIDO = [
-  'pendiente_pago',
-  'comprobante_recibido',
-  'confirmado',
-  'en_preparacion',
-  'enviado',
-  'entregado',
-  'cancelado',
+  'pendiente',       // Pedido creado, esperando comprobante de pago
+  'pago_verificado', // Admin verificó el comprobante — stock descontado
+  'despachado',      // Pedido enviado o entregado en mano
+  'entregado',       // Confirmación final de entrega
+  'cancelado',       // Pedido anulado
 ]
 
 const ClienteSchema = new mongoose.Schema({
@@ -48,7 +46,7 @@ const PedidoSchema = new mongoose.Schema({
   impuesto: { type: Number, default: 0, min: 0 },
   total: { type: Number, default: 0, min: 0 },
 
-  estado: { type: String, enum: ESTADOS_PEDIDO, default: 'pendiente_pago', index: true },
+  estado: { type: String, enum: ESTADOS_PEDIDO, default: 'pendiente', index: true },
   historialEstados: [{
     estado: { type: String, enum: ESTADOS_PEDIDO },
     fecha: { type: Date, default: Date.now },
@@ -87,13 +85,11 @@ PedidoSchema.statics.validarTransicion = function (estadoActual, nuevoEstado, pe
   if (estadoActual === nuevoEstado) return { ok: true }
 
   const transiciones = {
-    pendiente_pago: ['comprobante_recibido', 'cancelado'],
-    comprobante_recibido: ['confirmado', 'pendiente_pago', 'cancelado'],
-    confirmado: ['en_preparacion', 'cancelado'],
-    en_preparacion: ['enviado', 'cancelado'],
-    enviado: ['entregado', 'cancelado'],
-    entregado: [],
-    cancelado: [],
+    pendiente:       ['pago_verificado', 'cancelado'],
+    pago_verificado: ['despachado', 'cancelado'],
+    despachado:      ['entregado'],
+    entregado:       [],
+    cancelado:       [],
   }
 
   const permitidos = transiciones[estadoActual] || []
@@ -101,11 +97,11 @@ PedidoSchema.statics.validarTransicion = function (estadoActual, nuevoEstado, pe
     return { ok: false, msg: `Transición inválida: ${estadoActual} → ${nuevoEstado}` }
   }
 
-  if (nuevoEstado === 'confirmado') {
+  if (nuevoEstado === 'pago_verificado') {
     if (!pedido?.comprobantePago?.verificado) {
       return {
         ok: false,
-        msg: 'No se puede confirmar el pedido: el comprobante de pago enviado por WhatsApp debe ser revisado y verificado primero.',
+        msg: 'No se puede aprobar el pedido: el comprobante de pago debe ser verificado primero.',
       }
     }
   }

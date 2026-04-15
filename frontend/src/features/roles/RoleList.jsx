@@ -1123,9 +1123,7 @@ const RolesList = () => {
       </MotionBox>
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <AnimatePresence>
-        {open && (
-          <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
+      <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1257,13 +1255,9 @@ const RolesList = () => {
               </Button>
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
       {/* ═══ MODAL DETALLES ═══ */}
-      <AnimatePresence>
-        {detailsOpen && (
-          <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
+      <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {
@@ -1356,8 +1350,6 @@ const RolesList = () => {
               )}
             </DialogActions>
           </Dialog>
-        )}
-      </AnimatePresence>
 
     </Box>
   )
