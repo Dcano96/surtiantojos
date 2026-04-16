@@ -706,7 +706,7 @@ export default function LandingPage() {
   /* ══════════════════════════════════════════════════════════════
      CHECKOUT
      ══════════════════════════════════════════════════════════════ */
-  const StepIndicator = () => (
+  const renderStepIndicator = () => (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:44}}>
       {STEPS.map((label,i)=>{
         const idx=i+1,done=checkoutStep>idx,active=checkoutStep===idx
@@ -729,7 +729,7 @@ export default function LandingPage() {
     </div>
   )
 
-  const PasoCarrito = () => (
+  const renderPasoCarrito = () => (
     <motion.div key="pc" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} transition={{duration:.3}}>
       <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:26}}>
         <h2 style={{fontFamily:T.fontH,fontWeight:800,fontSize:"1.75rem",color:T.t1}}>Resumen del pedido</h2>
@@ -766,12 +766,15 @@ export default function LandingPage() {
     </motion.div>
   )
 
-  const PasoDatos = () => (
+  const pasoDatosFields = [{lb:"Nombre *",nm:"nombre",ph:"Ej: María"},{lb:"Apellido",nm:"apellido",ph:"Ej: González"},{lb:"WhatsApp / Teléfono *",nm:"telefono",ph:"3001234567"},{lb:"N° Documento *",nm:"documento",ph:"CC: 1234567890"},{lb:"Email",nm:"email",ph:"correo@email.com",tp:"email"},{lb:"Ciudad",nm:"ciudad",ph:"Bogotá"},{lb:"Dirección de entrega *",nm:"direccion",ph:"Calle, barrio, referencia...",span:2}]
+  const pasoDatosMetodos = [{id:"nequi",ic:"💳",lb:"Nequi",ds:"Billetera digital"},{id:"daviplata",ic:"📱",lb:"Daviplata",ds:"Billetera Davivienda"},{id:"transferencia",ic:"🏦",lb:"Transferencia",ds:"Bancolombia / PSE"}]
+
+  const renderPasoDatos = () => (
     <motion.div key="pd" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} transition={{duration:.3}}>
       <h2 style={{fontFamily:T.fontH,fontWeight:800,fontSize:"1.75rem",color:T.t1,marginBottom:6}}>¿A quién le enviamos?</h2>
       <p style={{fontFamily:T.font,color:T.t3,fontSize:".88rem",marginBottom:28,lineHeight:1.6}}>Completa tus datos para continuar con el pedido</p>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:16,marginBottom:28}}>
-        {[{lb:"Nombre *",nm:"nombre",ph:"Ej: María"},{lb:"Apellido",nm:"apellido",ph:"Ej: González"},{lb:"WhatsApp / Teléfono *",nm:"telefono",ph:"3001234567"},{lb:"N° Documento *",nm:"documento",ph:"CC: 1234567890"},{lb:"Email",nm:"email",ph:"correo@email.com",tp:"email"},{lb:"Ciudad",nm:"ciudad",ph:"Bogotá"},{lb:"Dirección de entrega *",nm:"direccion",ph:"Calle, barrio, referencia...",span:2}].map(f=>(
+        {pasoDatosFields.map(f=>(
           <div key={f.nm} style={f.span?{gridColumn:`span ${f.span}`}:{}}>
             <label style={{fontFamily:T.font,fontSize:".76rem",fontWeight:700,color:T.t2,display:"block",marginBottom:7,letterSpacing:".02em"}}>{f.lb}</label>
             <input type={f.tp||"text"} value={form[f.nm]} placeholder={f.ph}
@@ -788,7 +791,7 @@ export default function LandingPage() {
       <div style={{marginBottom:28}}>
         <div style={{fontFamily:T.font,fontSize:".76rem",fontWeight:700,color:T.t2,marginBottom:14,letterSpacing:".02em"}}>MÉTODO DE PAGO *</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-          {[{id:"nequi",ic:"💳",lb:"Nequi",ds:"Billetera digital"},{id:"daviplata",ic:"📱",lb:"Daviplata",ds:"Billetera Davivienda"},{id:"transferencia",ic:"🏦",lb:"Transferencia",ds:"Bancolombia / PSE"}].map(mp=>(
+          {pasoDatosMetodos.map(mp=>(
             <motion.button key={mp.id} whileTap={{scale:.97}} onClick={()=>setMetodoPago(mp.id)}
               style={{padding:"18px 14px",borderRadius:18,cursor:"pointer",border:metodoPago===mp.id?`2.5px solid ${T.o1}`:"1.5px solid rgba(0,0,0,0.08)",background:metodoPago===mp.id?"rgba(255,107,53,0.07)":"rgba(255,255,255,0.80)",textAlign:"left",transition:"all .2s",boxShadow:metodoPago===mp.id?T.glow:"0 2px 12px rgba(0,0,0,0.04)"}}>
               <div style={{fontSize:"1.6rem",marginBottom:8}}>{mp.ic}</div>
@@ -806,7 +809,7 @@ export default function LandingPage() {
     </motion.div>
   )
 
-  const PasoConfirmar = () => {
+  const renderPasoConfirmar = () => {
     const mpLabel={nequi:"Nequi",daviplata:"Daviplata",transferencia:"Transferencia bancaria"}
     return(
       <motion.div key="pcf" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} transition={{duration:.3}}>
@@ -856,7 +859,7 @@ export default function LandingPage() {
     )
   }
 
-  const PasoListo = () => (
+  const renderPasoListo = () => (
     <motion.div key="pl" initial={{opacity:0,scale:.92}} animate={{opacity:1,scale:1}} exit={{opacity:0}} transition={{type:"spring",stiffness:260,damping:24}}
       style={{textAlign:"center",padding:"30px 0"}}>
       <motion.div animate={{scale:[1,1.22,0.95,1.08,1]}} transition={{duration:.7,delay:.1}} style={{fontSize:"5rem",marginBottom:28}}>🎉</motion.div>
@@ -878,7 +881,7 @@ export default function LandingPage() {
     </motion.div>
   )
 
-  const CheckoutPage = () => (
+  const renderCheckoutPage = () => (
     <div style={{minHeight:"100vh",background:T.bg,paddingTop:90,position:"relative",overflow:"hidden"}}>
       <Orb sz={350} top="-100px" right="-80px" c="rgba(255,107,53,0.09)" an="lp-f1"/>
       <Orb sz={250} bottom="10%" left="-60px" c="rgba(255,160,122,0.08)" an="lp-f2" dl="3s"/>
@@ -889,13 +892,13 @@ export default function LandingPage() {
             ← Volver al catálogo
           </button>
         )}
-        <StepIndicator/>
+        {renderStepIndicator()}
         <div style={{background:"rgba(255,255,255,0.92)",backdropFilter:T.blur,border:"1px solid rgba(255,255,255,0.80)",boxShadow:"0 8px 50px rgba(0,0,0,0.07),inset 0 1px 0 rgba(255,255,255,0.95)",borderRadius:32,padding:"40px 44px"}}>
           <AnimatePresence mode="wait">
-            {checkoutStep===1&&<PasoCarrito/>}
-            {checkoutStep===2&&<PasoDatos/>}
-            {checkoutStep===3&&<PasoConfirmar/>}
-            {checkoutStep===4&&<PasoListo/>}
+            {checkoutStep===1&&renderPasoCarrito()}
+            {checkoutStep===2&&renderPasoDatos()}
+            {checkoutStep===3&&renderPasoConfirmar()}
+            {checkoutStep===4&&renderPasoListo()}
           </AnimatePresence>
         </div>
       </div>
@@ -976,7 +979,7 @@ export default function LandingPage() {
           </motion.div>
         ) : (
           <motion.div key="check" initial={{opacity:0,x:40}} animate={{opacity:1,x:0}} exit={{opacity:0,x:40}} transition={{duration:.35}}>
-            <CheckoutPage/>
+            {renderCheckoutPage()}
           </motion.div>
         )}
       </AnimatePresence>

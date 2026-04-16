@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import authRoutes from './modules/auth/auth.routes.js'
 import productoRoutes from './modules/productos/producto.routes.js'
 import categoriaRoutes from './modules/categorias/categoria.routes.js'
@@ -10,11 +12,17 @@ import ventaRoutes from './modules/ventas/venta.routes.js'
 import clienteRoutes from './modules/clientes/cliente.routes.js'
 import inventarioRoutes from './modules/inventario/inventario.routes.js'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 const app = express()
 
 // Middlewares
 app.use(cors())
 app.use(express.json())
+
+// Servir archivos subidos
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
 
 // Rutas
 app.use('/api/auth', authRoutes)

@@ -1123,7 +1123,7 @@ const RolesList = () => {
       </MotionBox>
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
+      <Dialog key={editingId || "new"} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
             fullWidth maxWidth="sm"
             sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
             slotProps={{ paper: { sx: {

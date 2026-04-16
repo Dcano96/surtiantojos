@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Typography, TextField, Button, Dialog, DialogContent, DialogActions,
   MenuItem, Box, InputAdornment, Tooltip,
@@ -197,6 +197,10 @@ const ProductosList = () => {
   const [filterCategoria, setFilterCategoria] = useState("")
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(5)
+  const [imagenFile, setImagenFile] = useState(null)
+  const [imagenPreview, setImagenPreview] = useState("")
+  const [uploadingImg, setUploadingImg] = useState(false)
+  const imgInputRef = useRef(null)
 
   // Cargar datos
   const fetchProductos = async () => {
@@ -237,16 +241,32 @@ const ProductosList = () => {
         estado: prod.estado,
       })
       setEditingId(prod._id)
+      setSelectedProd(prod)
+      setImagenPreview(prod.imagen || "")
     } else {
       setFormData({ nombre: "", descripcion: "", precio: "", stockInicial: "", stockMinimo: "", unidadMedida: "unidad", categoria: "", imagen: "", estado: true })
       setEditingId(null)
+      setSelectedProd(null)
+      setImagenPreview("")
     }
+    setImagenFile(null)
     setOpen(true)
   }
   const handleClose = () => {
     setOpen(false); setEditingId(null)
     setFormData({ nombre: "", descripcion: "", precio: "", stockInicial: "", stockMinimo: "", unidadMedida: "unidad", categoria: "", imagen: "", estado: true })
     setFormErrors({ nombre: "", precio: "", stockInicial: "" })
+    setImagenFile(null)
+    setImagenPreview("")
+  }
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImagenFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setImagenPreview(reader.result)
+    reader.readAsDataURL(file)
   }
 
   // Abrir detalle
@@ -303,9 +323,16 @@ const ProductosList = () => {
       await swalFire({ ...SW, icon: "warning", title: "Categoría requerida", text: "Selecciona una categoría para el producto." })
       return
     }
+    const isEditing = !!editingId
+    setUploadingImg(true)
     try {
-      if (editingId) {
-        // En edición: nunca enviar stock, solo metadatos
+      let imagenUrl = formData.imagen
+      if (isEditing) {
+        // Subir imagen si se seleccionó un archivo
+        if (imagenFile) {
+          const uploadRes = await productosService.uploadImagen(editingId, imagenFile)
+          imagenUrl = uploadRes.url
+        }
         const payload = {
           nombre: formData.nombre,
           descripcion: formData.descripcion,
@@ -313,12 +340,11 @@ const ProductosList = () => {
           stockMinimo: Number(formData.stockMinimo) || 0,
           unidadMedida: formData.unidadMedida,
           categoria: formData.categoria,
-          imagen: formData.imagen,
+          imagen: imagenUrl,
           estado: formData.estado,
         }
         await productosService.updateProducto(editingId, payload)
       } else {
-        // En creación: enviar stockInicial para que el backend genere el movimiento
         const payload = {
           nombre: formData.nombre,
           descripcion: formData.descripcion,
@@ -327,18 +353,28 @@ const ProductosList = () => {
           stockMinimo: Number(formData.stockMinimo) || 0,
           unidadMedida: formData.unidadMedida,
           categoria: formData.categoria,
-          imagen: formData.imagen,
+          imagen: "",
         }
-        await productosService.createProducto(payload)
+        const created = await productosService.createProducto(payload)
+        // Subir imagen después de crear (necesitamos el ID)
+        if (imagenFile) {
+          const prodId = created?.data?._id || created?._id
+          if (prodId) {
+            const uploadRes = await productosService.uploadImagen(prodId, imagenFile)
+            await productosService.updateProducto(prodId, { imagen: uploadRes.url })
+          }
+        }
       }
       handleClose()
       await fetchProductos()
       setTimeout(() => {
-        swalFire({ ...SW, icon: "success", title: editingId ? "Producto actualizado" : "Producto creado", text: editingId ? "Los cambios se guardaron correctamente." : "El nuevo producto se registró correctamente.", timer: 2200, timerProgressBar: true, showConfirmButton: false })
+        swalFire({ ...SW, icon: "success", title: isEditing ? "Producto actualizado" : "Producto creado", text: isEditing ? "Los cambios se guardaron correctamente." : "El nuevo producto se registró correctamente.", timer: 2200, timerProgressBar: true, showConfirmButton: false })
       }, 300)
     } catch (e) {
       const msg = e.response?.data?.message || "Error al guardar el producto."
       await swalFire({ ...SW, icon: "error", title: "Error al guardar", text: msg })
+    } finally {
+      setUploadingImg(false)
     }
   }
 
@@ -700,7 +736,7 @@ const ProductosList = () => {
       </Box>
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
+      <Dialog key={editingId || "new"} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
         fullWidth maxWidth="sm"
         sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(12px)", background: "rgba(15,23,42,.20)" } }}
         slotProps={{ paper: { sx: {
@@ -811,39 +847,72 @@ const ProductosList = () => {
             </TextField>
           </Box>
 
-          <TextField margin="dense" label="URL de Imagen" name="imagen"
-            value={formData.imagen} onChange={handleChange}
-            fullWidth variant="outlined" size="small"
-            placeholder="https://ejemplo.com/imagen.jpg"
-            helperText="Pega la URL de la imagen del producto (opcional)"
-            sx={{ mb: 1, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
-            slotProps={{ input: { startAdornment: <InputAdornment position="start"><Image size={14} color={T.t3} /></InputAdornment> } }}
+          {/* Upload de imagen */}
+          <input
+            ref={imgInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={handleImageSelect}
+            style={{ display: "none" }}
           />
-
-          {/* Vista previa de imagen */}
-          {formData.imagen && (
-            <Box sx={{ mt: 1, mb: 1, display: "flex", justifyContent: "center" }}>
-              <Box component="img" src={formData.imagen} alt="Vista previa"
-                sx={{
-                  maxWidth: 180, maxHeight: 120, borderRadius: "14px", objectFit: "cover",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.10)", border: "2px solid rgba(255,255,255,0.8)",
-                }}
-                onError={(e) => { e.target.style.display = "none" }}
-              />
-            </Box>
-          )}
+          <Box
+            onClick={() => imgInputRef.current?.click()}
+            sx={{
+              mb: 1, p: 2.5, borderRadius: "14px",
+              border: imagenPreview ? `2px solid ${T.green}` : "2px dashed rgba(255,107,53,0.25)",
+              background: imagenPreview ? "rgba(34,197,94,0.04)" : "rgba(255,107,53,0.03)",
+              cursor: "pointer", textAlign: "center",
+              transition: "all .25s",
+              "&:hover": { borderColor: T.o1, background: "rgba(255,107,53,0.06)" },
+            }}
+          >
+            {imagenPreview ? (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <Box
+                  component="img"
+                  src={imagenPreview}
+                  alt="Vista previa"
+                  sx={{ maxWidth: 180, maxHeight: 120, borderRadius: "12px", objectFit: "cover", boxShadow: "0 4px 16px rgba(0,0,0,0.10)" }}
+                />
+                {imagenFile && (
+                  <Typography sx={{ fontFamily: T.font, fontSize: ".78rem", color: T.green, fontWeight: 700 }}>
+                    {imagenFile.name}
+                  </Typography>
+                )}
+                <Typography sx={{ fontFamily: T.font, fontSize: ".72rem", color: T.t3 }}>
+                  Click para cambiar la imagen
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                <Box sx={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,107,53,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Image size={20} color={T.o1} />
+                </Box>
+                <Typography sx={{ fontFamily: T.font, fontSize: ".84rem", fontWeight: 700, color: T.t1 }}>
+                  Subir imagen del producto
+                </Typography>
+                <Typography sx={{ fontFamily: T.font, fontSize: ".72rem", color: T.t3 }}>
+                  Click para seleccionar (JPG, PNG, GIF, WebP - Opcional)
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </DialogContent>
 
         <DialogActions sx={{ p: "14px 26px 20px !important", gap: "10px" }}>
-          <Button onClick={handleClose} sx={cancelBtnSx}>Cancelar</Button>
+          <Button onClick={handleClose} disabled={uploadingImg} sx={cancelBtnSx}>Cancelar</Button>
           <Button onClick={handleSubmit}
-            disabled={!!formErrors.nombre || !!formErrors.precio || !!formErrors.stockInicial || !formData.nombre.trim() || !formData.categoria}
+            disabled={uploadingImg || !!formErrors.nombre || !!formErrors.precio || (!editingId && !!formErrors.stockInicial) || !formData.nombre.trim() || !formData.categoria}
             sx={submitBtnSx}>
-            {editingId ? (
-              <><Edit2 size={14} /> Guardar Cambios</>
-            ) : (
-              <><Plus size={14} /> Crear Producto</>
-            )}
+            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <Box component="span" sx={{ display: "inline-flex" }}>
+                {editingId
+                  ? <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  : <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                }
+              </Box>
+              <span>{editingId ? "Guardar Cambios" : "Crear Producto"}</span>
+            </Box>
           </Button>
         </DialogActions>
       </Dialog>
@@ -913,7 +982,7 @@ const ProductosList = () => {
         <DialogActions sx={{ p: "14px 26px 20px !important" }}>
           <Button onClick={() => setDetailsOpen(false)} sx={cancelBtnSx}>Cerrar</Button>
           <Button onClick={() => { setDetailsOpen(false); handleOpen(selectedProd) }} sx={submitBtnSx}>
-            <Edit2 size={14} /> Editar
+            <Edit2 size={14} /> {"Editar"}
           </Button>
         </DialogActions>
       </Dialog>

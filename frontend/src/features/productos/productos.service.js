@@ -62,6 +62,15 @@ const deleteProducto = async (id) => {
   }
 }
 
+const uploadImagen = async (productoId, file) => {
+  const formData = new FormData()
+  formData.append('imagen', file)
+  const response = await api.post(`${API_URL}/${productoId}/imagen/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export default {
   getProductos,
   getProductoById,
@@ -69,4 +78,5 @@ export default {
   updateProducto,
   cambiarEstadoProducto,
   deleteProducto,
+  uploadImagen,
 }

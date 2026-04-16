@@ -62,6 +62,15 @@ const cambiarEstado = async (id, estado, nota) => {
   }
 }
 
+const uploadComprobante = async (pedidoId, file) => {
+  const formData = new FormData()
+  formData.append('comprobante', file)
+  const response = await api.post(`${API_URL}/${pedidoId}/comprobante/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 const registrarComprobante = async (id, data) => {
   try {
     const response = await api.post(`${API_URL}/${id}/comprobante`, data)
@@ -129,6 +138,7 @@ export default {
   updatePedido,
   deletePedido,
   cambiarEstado,
+  uploadComprobante,
   registrarComprobante,
   verificarComprobante,
   getDetalles,

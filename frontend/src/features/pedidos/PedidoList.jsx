@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Typography, TextField, Button, Dialog, DialogContent, DialogActions,
@@ -102,9 +102,7 @@ const swalFire = (options) => Swal.fire({ ...options, allowOutsideClick: options
    REUSABLE STYLES
    ═══════════════════════════════════════════════════════════════ */
 const glassCard = {
-  background: T.glass2,
-  backdropFilter: T.blur,
-  WebkitBackdropFilter: T.blur,
+  background: "rgba(255,255,255,0.92)",
   border: `1px solid ${T.border}`,
   boxShadow: T.neu,
 }
@@ -152,7 +150,7 @@ const cancelBtnSx = {
   color: `${T.t2} !important`, borderRadius: "16px !important",
   padding: "11px 26px !important", border: "1.5px solid rgba(0,0,0,0.06) !important",
   textTransform: "none !important", background: "rgba(255,255,255,0.75) !important",
-  backdropFilter: "blur(16px) !important",
+  /* backdropFilter removed for perf */
   transition: "all .25s ease !important",
   "&:hover": { background: "rgba(255,255,255,0.95) !important", boxShadow: "0 4px 16px rgba(0,0,0,0.06) !important", transform: "translateY(-1px)" },
 }
@@ -170,9 +168,8 @@ const submitBtnSx = {
 
 const pageBtn = {
   width: 36, height: 36, borderRadius: "12px",
-  background: "rgba(255,255,255,0.65)", color: T.t3,
+  background: "rgba(255,255,255,0.90)", color: T.t3,
   border: `1px solid ${T.border}`,
-  backdropFilter: "blur(16px)",
   fontFamily: T.font, fontSize: ".80rem", fontWeight: 600,
   display: "flex", alignItems: "center", justifyContent: "center",
   cursor: "pointer", minWidth: "unset", p: 0,
@@ -191,8 +188,7 @@ const fieldSx = {
     borderRadius: "14px",
     fontFamily: T.font,
     fontSize: ".86rem",
-    background: "rgba(255,255,255,0.65)",
-    backdropFilter: "blur(12px)",
+    background: "rgba(255,255,255,0.85)",
     "& fieldset": { borderColor: "rgba(0,0,0,0.08)" },
     "&:hover fieldset": { borderColor: T.o1 },
     "&.Mui-focused fieldset": { borderColor: T.o1, borderWidth: "1.5px" },
@@ -230,20 +226,7 @@ const CartIcon3D = () => (
   </svg>
 )
 
-const GlassOrb = ({ size, top, left, right, bottom, color = "rgba(255,140,80,0.5)", delay = 0, dur = 10, anim = "sa-float1" }) => (
-  <Box sx={{
-    position: "fixed", width: size, height: size, borderRadius: "50%",
-    background: `radial-gradient(circle at 30% 25%, rgba(255,255,255,0.5) 0%, ${color} 45%, rgba(200,60,0,0.15) 100%)`,
-    boxShadow: `0 ${size * 0.12}px ${size * 0.4}px ${color.replace(/[\d.]+\)$/, "0.2)")}, inset 0 -${size * 0.06}px ${size * 0.12}px rgba(0,0,0,0.08), inset 0 ${size * 0.1}px ${size * 0.15}px rgba(255,255,255,0.5)`,
-    top, left, right, bottom, zIndex: -1, pointerEvents: "none",
-    animation: `${anim} ${dur}s ease-in-out ${delay}s infinite`,
-    "&::before": {
-      content: '""', position: "absolute", top: "10%", left: "20%", width: "30%", height: "22%",
-      borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 70%)",
-      transform: "rotate(-20deg)",
-    },
-  }} />
-)
+/* GlassOrb removed — continuous CSS animations on fixed elements cause input lag */
 
 const PieChart3D = ({ total, enProceso, completados, cancelados }) => {
   const t = total || 1
@@ -315,6 +298,46 @@ const containerV = { hidden: {}, visible: { transition: { staggerChildren: 0.07,
 const itemV = { hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }
 const scaleV = { hidden: { opacity: 0, scale: 0.93 }, visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 260, damping: 22 } } }
 
+/* ─── Extracted components (outside render = stable references) ─── */
+const EstadoPill = ({ estado }) => {
+  const cfg = ESTADOS[estado] || { label: estado, color: T.t2, bg: "rgba(0,0,0,0.06)", icon: Clock }
+  const Icon = cfg.icon
+  return (
+    <Box sx={{
+      display: "inline-flex", alignItems: "center", gap: "7px",
+      padding: "6px 14px", borderRadius: "24px",
+      fontFamily: T.font, fontSize: ".73rem", fontWeight: 700,
+      background: cfg.bg, color: cfg.color,
+      boxShadow: `0 2px 8px ${cfg.color}22`,
+    }}>
+      <Icon size={13} /> {cfg.label}
+    </Box>
+  )
+}
+
+const DlgHdr = ({ icon, title, sub, onClose, gradient }) => (
+  <Box sx={{
+    background: gradient || T.go, p: "22px 28px", display: "flex", alignItems: "center", gap: "16px",
+    position: "relative", overflow: "hidden",
+  }}>
+    <Box sx={{
+      width: 44, height: 44, borderRadius: "14px", background: "rgba(255,255,255,.18)",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      boxShadow: "inset 0 1px 2px rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.1)",
+    }}>{icon}</Box>
+    <Box sx={{ flex: 1, zIndex: 1 }}>
+      <Typography sx={{ fontFamily: `${T.fontH} !important`, fontWeight: "800 !important", fontSize: "1.12rem !important", color: "#fff !important", lineHeight: 1.2 }}>{title}</Typography>
+      <Typography sx={{ fontSize: ".76rem", color: "rgba(255,255,255,.8)", mt: "4px", fontFamily: T.font }}>{sub}</Typography>
+    </Box>
+    <button style={{
+      width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.15)",
+      border: "1px solid rgba(255,255,255,.12)",
+      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", flexShrink: 0, transition: "all .25s",
+    }} onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
+  </Box>
+)
+
 /* ═══════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
    ═══════════════════════════════════════════════════════════════ */
@@ -349,6 +372,10 @@ const PedidoList = () => {
     url: "", metodoPago: "transferencia", referencia: "", fechaEnvio: "",
   }
   const [comprobante, setComprobante] = useState(emptyComprobante)
+  const [comprobanteFile, setComprobanteFile] = useState(null)
+  const [comprobantePreview, setComprobantePreview] = useState("")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   const [verifyForm, setVerifyForm] = useState({ aprobado: true, notas: "" })
 
@@ -442,7 +469,18 @@ const PedidoList = () => {
       referencia: p.comprobantePago?.referencia || "",
       fechaEnvio: p.comprobantePago?.fechaEnvio ? p.comprobantePago.fechaEnvio.substring(0, 10) : "",
     })
+    setComprobanteFile(null)
+    setComprobantePreview("")
     setOpenComprobante(true)
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setComprobanteFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setComprobantePreview(reader.result)
+    reader.readAsDataURL(file)
   }
 
   const openVerificarDialog = (p) => {
@@ -544,16 +582,26 @@ const PedidoList = () => {
   }
 
   const saveComprobante = async () => {
-    if (!comprobante.url?.trim()) {
-      return swalFire({ icon: "warning", title: "URL requerida", text: "Pega el enlace o URL de la imagen del comprobante enviado por WhatsApp" })
+    if (!comprobanteFile && !comprobante.url?.trim()) {
+      return swalFire({ icon: "warning", title: "Comprobante requerido", text: "Selecciona una imagen del comprobante de pago" })
     }
+    setUploading(true)
     try {
-      await pedidosService.registrarComprobante(current._id, comprobante)
+      let url = comprobante.url
+      if (comprobanteFile) {
+        const uploadRes = await pedidosService.uploadComprobante(current._id, comprobanteFile)
+        url = uploadRes.url
+      }
+      await pedidosService.registrarComprobante(current._id, { ...comprobante, url })
       setOpenComprobante(false)
+      setComprobanteFile(null)
+      setComprobantePreview("")
       await loadAll()
       swalFire({ icon: "success", title: "Comprobante registrado", text: "Ahora debe ser revisado para confirmar el pedido", timer: 1800, showConfirmButton: false })
     } catch (e) {
       swalFire({ icon: "error", title: "Error", text: e.response?.data?.msg || "No se pudo registrar el comprobante" })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -591,24 +639,6 @@ const PedidoList = () => {
     }
   }
 
-  /* ─── Render helpers ─── */
-  const EstadoPill = ({ estado }) => {
-    const cfg = ESTADOS[estado] || { label: estado, color: T.t2, bg: "rgba(0,0,0,0.06)", icon: Clock }
-    const Icon = cfg.icon
-    return (
-      <Box sx={{
-        display: "inline-flex", alignItems: "center", gap: "7px",
-        padding: "6px 14px", borderRadius: "24px",
-        fontFamily: T.font, fontSize: ".73rem", fontWeight: 700,
-        backdropFilter: "blur(8px)",
-        background: cfg.bg, color: cfg.color,
-        boxShadow: `0 2px 8px ${cfg.color}22`,
-      }}>
-        <Icon size={13} /> {cfg.label}
-      </Box>
-    )
-  }
-
   const siguienteEstado = (estado) => {
     const map = {
       pago_verificado: "despachado",
@@ -618,31 +648,7 @@ const PedidoList = () => {
   }
 
   /* ─── Dialog Header ─── */
-  const DlgHdr = ({ icon, title, sub, onClose, gradient }) => (
-    <Box sx={{
-      background: gradient || T.go, p: "22px 28px", display: "flex", alignItems: "center", gap: "16px",
-      position: "relative", overflow: "hidden",
-    }}>
-      <Box sx={{ position: "absolute", top: -15, right: 25, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.07)", animation: "sa-float1 8s ease-in-out infinite" }} />
-      <Box sx={{ position: "absolute", bottom: -10, right: 90, width: 35, height: 35, borderRadius: "50%", background: "rgba(255,255,255,0.05)", animation: "sa-float2 6s ease-in-out 1s infinite" }} />
-      <Box sx={{ position: "absolute", top: 8, left: "40%", width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.04)", animation: "sa-float3 7s ease-in-out 0.5s infinite" }} />
-      <Box sx={{
-        width: 44, height: 44, borderRadius: "14px", background: "rgba(255,255,255,.18)",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        backdropFilter: "blur(12px)", boxShadow: "inset 0 1px 2px rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.1)",
-      }}>{icon}</Box>
-      <Box sx={{ flex: 1, zIndex: 1 }}>
-        <Typography sx={{ fontFamily: `${T.fontH} !important`, fontWeight: "800 !important", fontSize: "1.12rem !important", color: "#fff !important", lineHeight: 1.2 }}>{title}</Typography>
-        <Typography sx={{ fontSize: ".76rem", color: "rgba(255,255,255,.8)", mt: "4px", fontFamily: T.font }}>{sub}</Typography>
-      </Box>
-      <button style={{
-        width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.15)",
-        backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,.12)",
-        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", flexShrink: 0, transition: "all .25s",
-      }} onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
-    </Box>
-  )
+  /* DlgHdr moved outside component for performance */
 
   /* ═══════════════════════════════════════════════════════════════
      RENDER
@@ -650,26 +656,7 @@ const PedidoList = () => {
   return (
     <Box sx={{ fontFamily: T.font, width: "100%", maxWidth: "100%", overflow: "hidden", position: "relative", minHeight: "calc(100vh - 100px)" }}>
 
-      {/* ═══ ANIMATED BACKGROUND ═══ */}
-      <Box sx={{
-        position: "fixed", inset: 0, zIndex: -3, pointerEvents: "none",
-        background: "#F5F7FA",
-      }} />
-      <Box sx={{
-        position: "fixed", inset: 0, zIndex: -2, pointerEvents: "none", opacity: 0.025,
-        backgroundImage: "radial-gradient(circle, #FF6B35 1px, transparent 1px)",
-        backgroundSize: "32px 32px",
-      }} />
-
-      {/* ═══ FLOATING 3D GLASS ORBS ═══ */}
-      <GlassOrb size={75} top="3%" left="6%" color="rgba(255,107,53,0.18)" delay={0} dur={14} anim="sa-float1" />
-      <GlassOrb size={45} top="12%" right="10%" color="rgba(255,143,94,0.15)" delay={2} dur={11} anim="sa-float2" />
-      <GlassOrb size={28} top="25%" right="25%" color="rgba(255,107,53,0.12)" delay={0.5} dur={9} anim="sa-float3" />
-      <GlassOrb size={55} bottom="18%" left="4%" color="rgba(255,80,20,0.14)" delay={3} dur={13} anim="sa-float2" />
-      <GlassOrb size={20} top="8%" left="45%" color="rgba(255,160,100,0.12)" delay={1.5} dur={8} anim="sa-float3" />
-      <GlassOrb size={35} bottom="30%" right="6%" color="rgba(255,107,53,0.10)" delay={4} dur={12} anim="sa-float1" />
-      <GlassOrb size={16} top="40%" left="15%" color="rgba(34,197,94,0.12)" delay={2.5} dur={10} anim="sa-float2" />
-      <GlassOrb size={22} bottom="10%" right="35%" color="rgba(245,158,11,0.10)" delay={1} dur={9} anim="sa-float3" />
+      {/* Animated backgrounds and glass orbs removed for performance */}
 
       {/* ═══ HERO HEADER ═══ */}
       <MotionBox variants={scaleV} initial="hidden" animate="visible" sx={{
@@ -865,7 +852,7 @@ const PedidoList = () => {
                     gap: "8px", alignItems: "center", p: "18px 22px",
                     borderRadius: "18px",
                     background: "rgba(255,255,255,0.68)",
-                    backdropFilter: "blur(24px) saturate(180%)",
+                    /* backdropFilter removed for performance */
                     border: "1px solid rgba(255,255,255,0.55)",
                     boxShadow: "0 4px 20px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
                     cursor: "default",
@@ -1025,18 +1012,17 @@ const PedidoList = () => {
       )}
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <Dialog open={openForm} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenForm(false) }}
+      <Dialog key={editing ? current?._id : "new"} open={openForm} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenForm(false) }}
             fullWidth maxWidth="md"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.22)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: "94%",
               background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)",
+              /* backdropFilter removed for performance */
               overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
             } } }}>
             <DlgHdr
               icon={<ShoppingCart size={18} color="#fff" />}
@@ -1104,7 +1090,7 @@ const PedidoList = () => {
                       <Box key={i} sx={{
                         display: "grid", gridTemplateColumns: "2fr 90px 130px 40px", gap: 1, mb: 1.2,
                         p: "10px", borderRadius: "14px",
-                        background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.5)", backdropFilter: "blur(12px)",
+                        background: "rgba(255,255,255,0.85)", border: "1px solid rgba(0,0,0,0.04)",
                       }}>
                         <TextField select size="small" sx={fieldSx} value={it.producto}
                           onChange={(e) => changeItem(i, "producto", e.target.value)}>
@@ -1185,16 +1171,15 @@ const PedidoList = () => {
       {/* ═══ MODAL DETALLE ═══ */}
       <Dialog open={openDetail} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenDetail(false) }}
             fullWidth maxWidth="md"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.22)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: "94%",
               background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)",
+              /* backdropFilter removed for performance */
               overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
             } } }}>
             {current && (
               <>
@@ -1308,16 +1293,15 @@ const PedidoList = () => {
       {/* ═══ MODAL COMPROBANTE ═══ */}
       <Dialog open={openComprobante} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenComprobante(false) }}
             fullWidth maxWidth="sm"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.22)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: "92%", maxWidth: 540,
               background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)",
+              /* backdropFilter removed for performance */
               overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
             } } }}>
             <DlgHdr
               icon={<CreditCard size={18} color="#fff" />}
@@ -1328,12 +1312,57 @@ const PedidoList = () => {
             />
             <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
               <Typography sx={{ fontFamily: T.font, fontSize: ".86rem", color: T.t2, mb: 2 }}>
-                Pega la URL de la imagen del comprobante que el cliente envió por WhatsApp. El pedido quedará marcado para revisión.
+                Sube la imagen del comprobante que el cliente envió por WhatsApp. El pedido quedará marcado para revisión.
               </Typography>
-              <TextField label="URL del comprobante *" size="small" fullWidth sx={{ ...fieldSx, mb: 2 }}
-                value={comprobante.url}
-                onChange={(e) => setComprobante({ ...comprobante, url: e.target.value })}
-                placeholder="https://..." />
+
+              {/* Upload de imagen */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <Box
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  mb: 2, p: 3, borderRadius: "16px",
+                  border: comprobantePreview ? `2px solid ${T.green}` : "2px dashed rgba(255,107,53,0.25)",
+                  background: comprobantePreview ? "rgba(34,197,94,0.04)" : "rgba(255,107,53,0.03)",
+                  cursor: "pointer", textAlign: "center",
+                  transition: "all .25s",
+                  "&:hover": { borderColor: T.o1, background: "rgba(255,107,53,0.06)" },
+                }}
+              >
+                {comprobantePreview ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      component="img"
+                      src={comprobantePreview}
+                      alt="Vista previa"
+                      sx={{ maxWidth: 220, maxHeight: 160, borderRadius: "12px", objectFit: "cover", boxShadow: "0 4px 16px rgba(0,0,0,0.10)" }}
+                    />
+                    <Typography sx={{ fontFamily: T.font, fontSize: ".80rem", color: T.green, fontWeight: 700 }}>
+                      {comprobanteFile?.name}
+                    </Typography>
+                    <Typography sx={{ fontFamily: T.font, fontSize: ".72rem", color: T.t3 }}>
+                      Click para cambiar la imagen
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                    <Box sx={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,107,53,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <CreditCard size={24} color={T.o1} />
+                    </Box>
+                    <Typography sx={{ fontFamily: T.font, fontSize: ".88rem", fontWeight: 700, color: T.t1 }}>
+                      Subir comprobante de pago
+                    </Typography>
+                    <Typography sx={{ fontFamily: T.font, fontSize: ".76rem", color: T.t3 }}>
+                      Arrastra o haz click para seleccionar la imagen (JPG, PNG, PDF - Max 5MB)
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
               <TextField select label="Método de pago" size="small" fullWidth sx={{ ...fieldSx, mb: 2 }}
                 value={comprobante.metodoPago}
                 onChange={(e) => setComprobante({ ...comprobante, metodoPago: e.target.value })}>
@@ -1352,24 +1381,25 @@ const PedidoList = () => {
               borderTop: "1px solid rgba(0,0,0,0.04)",
               display: "flex", justifyContent: "flex-end", gap: "10px",
             }}>
-              <Button onClick={() => setOpenComprobante(false)} sx={cancelBtnSx}>Cancelar</Button>
-              <Button onClick={saveComprobante} sx={submitBtnSx}>Registrar</Button>
+              <Button onClick={() => setOpenComprobante(false)} disabled={uploading} sx={cancelBtnSx}>Cancelar</Button>
+              <Button onClick={saveComprobante} disabled={uploading} sx={submitBtnSx}>
+                {uploading ? "Subiendo..." : "Registrar"}
+              </Button>
             </DialogActions>
           </Dialog>
 
       {/* ═══ MODAL VERIFICAR ═══ */}
       <Dialog open={openVerificar} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") setOpenVerificar(false) }}
             fullWidth maxWidth="sm"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.22)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: "92%", maxWidth: 540,
               background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)",
+              /* backdropFilter removed for performance */
               overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
             } } }}>
             <DlgHdr
               icon={<ShieldCheck size={18} color="#fff" />}
@@ -1402,7 +1432,6 @@ const PedidoList = () => {
                     color: verifyForm.aprobado ? T.green : T.t2,
                     border: `1.5px solid ${verifyForm.aprobado ? T.green : "rgba(0,0,0,0.08)"}`,
                     display: "flex", flexDirection: "column", gap: .5,
-                    backdropFilter: "blur(12px)",
                   }}>
                   <CheckCircle size={22} /> Aprobar<Box component="span" sx={{ fontSize: ".72rem", fontWeight: 500, display: "block" }}>Pedido → Confirmado</Box>
                 </Button>
@@ -1414,7 +1443,6 @@ const PedidoList = () => {
                     color: !verifyForm.aprobado ? T.r1 : T.t2,
                     border: `1.5px solid ${!verifyForm.aprobado ? T.r1 : "rgba(0,0,0,0.08)"}`,
                     display: "flex", flexDirection: "column", gap: .5,
-                    backdropFilter: "blur(12px)",
                   }}>
                   <ShieldAlert size={22} /> Rechazar<Box component="span" sx={{ fontSize: ".72rem", fontWeight: 500, display: "block" }}>Vuelve a Pendiente</Box>
                 </Button>

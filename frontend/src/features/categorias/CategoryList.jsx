@@ -277,8 +277,9 @@ const CategoriasList = () => {
   // Guardar
   const handleSubmit = async () => {
     if (!validateNombre(formData.nombre)) return
+    const isEditing = !!editingId
     try {
-      if (editingId) {
+      if (isEditing) {
         await categoriasService.updateCategoria(editingId, formData)
       } else {
         await categoriasService.createCategoria(formData)
@@ -286,7 +287,7 @@ const CategoriasList = () => {
       handleClose()
       await fetchCategorias()
       setTimeout(() => {
-        swalFire({ ...SW, icon: "success", title: editingId ? "Categoría actualizada" : "Categoría creada", text: editingId ? "Los cambios se guardaron correctamente." : "La nueva categoría se registró correctamente.", timer: 2200, timerProgressBar: true, showConfirmButton: false })
+        swalFire({ ...SW, icon: "success", title: isEditing ? "Categoría actualizada" : "Categoría creada", text: isEditing ? "Los cambios se guardaron correctamente." : "La nueva categoría se registró correctamente.", timer: 2200, timerProgressBar: true, showConfirmButton: false })
       }, 300)
     } catch (e) {
       const msg = e.response?.data?.message || "Error al guardar la categoría."
@@ -652,7 +653,7 @@ const CategoriasList = () => {
       </Box>
 
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
-      <Dialog open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
+      <Dialog key={editingId || "new"} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
         fullWidth maxWidth="sm"
         sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(12px)", background: "rgba(15,23,42,.20)" } }}
         slotProps={{ paper: { sx: {
@@ -712,8 +713,15 @@ const CategoriasList = () => {
         <DialogActions sx={{ p: "14px 26px 20px !important", gap: "10px" }}>
           <Button onClick={handleClose} sx={cancelBtnSx}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={!!formErrors.nombre || !formData.nombre.trim()} sx={submitBtnSx}>
-            {editingId ? <Edit2 size={14} /> : <Plus size={14} />}
-            {editingId ? "Guardar Cambios" : "Crear Categoría"}
+            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <Box component="span" sx={{ display: "inline-flex" }}>
+                {editingId
+                  ? <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  : <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                }
+              </Box>
+              <span>{editingId ? "Guardar Cambios" : "Crear Categoría"}</span>
+            </Box>
           </Button>
         </DialogActions>
       </Dialog>

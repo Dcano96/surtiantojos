@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import authMiddleware from '../../middlewares/authMiddleware.js'
+import upload from '../../middlewares/upload.js'
 import {
   getPedidos,
   getPedido,
@@ -26,6 +27,13 @@ router.put('/:id', authMiddleware, actualizarPedido)
 router.delete('/:id', authMiddleware, eliminarPedido)
 
 router.patch('/:id/estado', authMiddleware, cambiarEstado)
+router.post('/:id/comprobante/upload', authMiddleware, upload.single('comprobante'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, msg: 'No se recibió ningún archivo' })
+  }
+  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  res.json({ ok: true, url })
+})
 router.post('/:id/comprobante', authMiddleware, registrarComprobante)
 router.post('/:id/comprobante/verificar', authMiddleware, verificarComprobante)
 

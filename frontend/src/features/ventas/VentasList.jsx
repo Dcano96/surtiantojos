@@ -573,7 +573,7 @@ const VentasList = () => {
       </MotionBox>
 
       {/* FORM DIALOG */}
-      <Dialog open={openForm} onClose={() => setOpenForm(false)} maxWidth="md" fullWidth
+      <Dialog key={editing ? current?._id : "new"} open={openForm} onClose={() => setOpenForm(false)} maxWidth="md" fullWidth
         sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
         slotProps={{ paper: { sx: {
           borderRadius: "24px !important",
@@ -583,7 +583,6 @@ const VentasList = () => {
           backdropFilter: "blur(32px) saturate(200%)",
           fontFamily: T.font,
           overflow: "hidden",
-          animation: "sa-border-glow 3s ease-in-out infinite",
         } } }}>
         <DlgHdr
           icon={<Receipt size={20} color="#fff" />}
@@ -679,7 +678,6 @@ const VentasList = () => {
           backdropFilter: "blur(32px) saturate(200%)",
           fontFamily: T.font,
           overflow: "hidden",
-          animation: "sa-border-glow 3s ease-in-out infinite",
         } } }}>
         {current && (
           <>
