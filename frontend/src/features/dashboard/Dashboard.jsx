@@ -926,7 +926,7 @@ export default function Dashboard() {
         if (r.isConfirmed) {
           localStorage.removeItem("token"); localStorage.removeItem("usuario")
           localStorage.removeItem("sa-mod")
-          navigate("/login", { replace: true })
+          navigate("/", { replace: true })
         }
       })
   }
