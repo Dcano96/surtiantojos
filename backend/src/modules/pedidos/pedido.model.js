@@ -32,6 +32,8 @@ const ComprobantePagoSchema = new mongoose.Schema({
   verificadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' },
   fechaVerificacion: { type: Date },
   notasVerificacion: { type: String, trim: true },
+  // El admin marcó desde la vista pública /p/:numero que recibió el comprobante por WhatsApp
+  recibidoPorWhatsapp: { type: Boolean, default: false },
 }, { _id: false })
 
 const PedidoSchema = new mongoose.Schema({

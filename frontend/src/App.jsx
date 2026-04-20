@@ -4,6 +4,7 @@ import Login from "./features/auth/Login";
 
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard"));
 const LandingPage = lazy(() => import("./features/landing/LandingPage"));
+const PedidoPublicView = lazy(() => import("./features/landing/PedidoPublicView"));
 
 const PageFallback = <div style={{height:"100vh",background:"#12090A"}} />;
 
@@ -14,6 +15,11 @@ function App() {
         <Route path="/" element={
           <Suspense fallback={PageFallback}>
             <LandingPage />
+          </Suspense>
+        } />
+        <Route path="/p/:numero" element={
+          <Suspense fallback={PageFallback}>
+            <PedidoPublicView />
           </Suspense>
         } />
         <Route path="/login" element={<Login />} />

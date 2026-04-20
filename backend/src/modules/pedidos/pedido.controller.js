@@ -282,6 +282,217 @@ export const registrarComprobante = async (req, res) => {
   }
 }
 
+// Endpoint público — devuelve los datos mínimos del pedido para la vista
+// pública /p/:numero, donde el admin (desde su WhatsApp) puede confirmar
+// que recibió el comprobante por chat. NO expone usuario ni historial completo.
+export const getPedidoPublico = async (req, res) => {
+  try {
+    const { numero } = req.params
+    const pedido = await Pedido.findOne({ numero })
+      .populate({ path: 'detalles', populate: { path: 'producto', select: 'nombre precio imagen' } })
+      .lean()
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    // Sanitizar: no exponer datos internos
+    const safe = {
+      _id: pedido._id,
+      numero: pedido.numero,
+      estado: pedido.estado,
+      cliente: pedido.cliente,
+      subtotal: pedido.subtotal,
+      total: pedido.total,
+      descuento: pedido.descuento,
+      impuesto: pedido.impuesto,
+      detalles: (pedido.detalles || []).map(d => ({
+        nombreProducto: d.nombreProducto,
+        cantidad: d.cantidad,
+        precioUnitario: d.precioUnitario,
+        subtotal: d.subtotal,
+      })),
+      comprobantePago: {
+        url: pedido.comprobantePago?.url,
+        metodoPago: pedido.comprobantePago?.metodoPago,
+        referencia: pedido.comprobantePago?.referencia,
+        verificado: !!pedido.comprobantePago?.verificado,
+        recibidoPorWhatsapp: !!pedido.comprobantePago?.recibidoPorWhatsapp,
+      },
+      createdAt: pedido.createdAt,
+      // Indica al frontend si quien consulta es admin (JWT válido)
+      isAdmin: !!req.usuario?.id,
+    }
+    res.json(safe)
+  } catch (err) {
+    res.status(500).json({ msg: 'Error al consultar pedido', error: err.message })
+  }
+}
+
+// Endpoint público — marca que el comprobante fue recibido por WhatsApp.
+// Pensado para que el admin lo dispare desde su móvil al abrir el deep-link.
+// Protección por código compartido (PEDIDO_CONFIRM_TOKEN env) — no es auth
+// completa pero evita que cualquiera marque pedidos arbitrarios.
+export const marcarComprobanteWhatsapp = async (req, res) => {
+  try {
+    const { numero } = req.params
+    const { token, nota } = req.body || {}
+
+    const expected = process.env.PEDIDO_CONFIRM_TOKEN
+    if (!expected) {
+      return res.status(500).json({ msg: 'PEDIDO_CONFIRM_TOKEN no configurado en el servidor' })
+    }
+    if (!token || String(token) !== String(expected)) {
+      return res.status(403).json({ msg: 'Token inválido' })
+    }
+
+    const pedido = await Pedido.findOne({ numero })
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+    if (pedido.estado !== 'pendiente') {
+      return res.status(400).json({ msg: `El pedido está en estado "${pedido.estado}" — no admite cambios` })
+    }
+    if (pedido.comprobantePago?.verificado) {
+      return res.status(400).json({ msg: 'El comprobante ya fue verificado' })
+    }
+
+    pedido.comprobantePago = {
+      ...pedido.comprobantePago?.toObject?.() ?? {},
+      recibidoPorWhatsapp: true,
+      metodoPago: pedido.comprobantePago?.metodoPago || 'transferencia',
+      fechaEnvio: pedido.comprobantePago?.fechaEnvio || new Date(),
+      referencia: pedido.comprobantePago?.referencia || 'WhatsApp',
+    }
+    pedido.historialEstados.push({
+      estado: 'pendiente',
+      nota: nota || 'Comprobante recibido por WhatsApp — pendiente de verificación final',
+    })
+    await pedido.save()
+    res.json({ ok: true, numero: pedido.numero, comprobantePago: pedido.comprobantePago })
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al marcar comprobante', error: err.message })
+  }
+}
+
+// Endpoint híbrido — el admin (con JWT) sube y/o marca comprobante desde
+// la vista pública /p/:numero. Si action="verificar", también verifica y
+// avanza el pedido a "pago_verificado" descontando stock (mismo flujo que
+// verificarComprobante). Requiere sesión activa de admin.
+export const adminPublicComprobante = async (req, res) => {
+  const session = await mongoose.startSession()
+  try {
+    if (!req.usuario?.id) {
+      return res.status(401).json({ msg: 'Necesitas iniciar sesión como administrador' })
+    }
+    const { numero } = req.params
+    const { url, metodoPago, referencia, action, notas } = req.body || {}
+
+    const pedido = await Pedido.findOne({ numero })
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    const userId = req.usuario.id
+
+    // 1) Si se envió URL, registramos/actualizamos el comprobante
+    if (url) {
+      pedido.comprobantePago = {
+        ...pedido.comprobantePago?.toObject?.() ?? {},
+        url,
+        metodoPago: metodoPago || pedido.comprobantePago?.metodoPago || 'transferencia',
+        referencia: referencia || pedido.comprobantePago?.referencia || 'WhatsApp',
+        fechaEnvio: pedido.comprobantePago?.fechaEnvio || new Date(),
+        recibidoPorWhatsapp: true,
+      }
+      pedido.historialEstados.push({
+        estado: pedido.estado,
+        usuario: userId,
+        nota: 'Admin subió el comprobante recibido por WhatsApp desde la vista pública',
+      })
+    }
+
+    // 2) Si la acción es "verificar", aprobar y avanzar a pago_verificado
+    if (action === 'verificar') {
+      if (!pedido.comprobantePago?.url) {
+        return res.status(400).json({ msg: 'No hay comprobante adjunto para verificar' })
+      }
+      const { ok, msg } = Pedido.validarTransicion(pedido.estado, 'pago_verificado', {
+        comprobantePago: { ...pedido.comprobantePago.toObject?.(), verificado: true },
+      })
+      if (!ok) {
+        await pedido.save()
+        return res.status(400).json({ msg })
+      }
+      pedido.comprobantePago.verificado = true
+      pedido.comprobantePago.verificadoPor = userId
+      pedido.comprobantePago.fechaVerificacion = new Date()
+      pedido.comprobantePago.notasVerificacion = notas
+
+      await session.withTransaction(async () => {
+        const detalles = await DetallePedido.find({ pedido: pedido._id }).session(session)
+        await procesarSalidaPorVenta(pedido, detalles, userId, session)
+        pedido.estado = 'pago_verificado'
+        pedido.historialEstados.push({
+          estado: 'pago_verificado',
+          usuario: userId,
+          nota: notas || 'Comprobante verificado desde la vista pública — pago aprobado',
+        })
+        await pedido.save({ session })
+      })
+    } else {
+      await pedido.save()
+    }
+
+    res.json({ ok: true, numero: pedido.numero, estado: pedido.estado, comprobantePago: pedido.comprobantePago })
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al procesar comprobante', error: err.message })
+  } finally {
+    session.endSession()
+  }
+}
+
+// Endpoint público — el cliente registra su comprobante desde la landing.
+// Restricciones de seguridad: solo opera sobre pedidos en estado "pendiente" y
+// que aún NO tengan un comprobante verificado, evitando que terceros sobrescriban.
+export const registrarComprobantePublico = async (req, res) => {
+  try {
+    const { url, metodoPago, referencia, fechaEnvio, documento } = req.body
+    if (!url) {
+      return res.status(400).json({ msg: 'La URL del comprobante es obligatoria' })
+    }
+
+    const pedido = await Pedido.findById(req.params.id)
+    if (!pedido) return res.status(404).json({ msg: 'Pedido no encontrado' })
+
+    if (pedido.estado !== 'pendiente') {
+      return res.status(400).json({ msg: `El pedido ya está en estado "${pedido.estado}" y no admite nuevos comprobantes` })
+    }
+    if (pedido.comprobantePago?.verificado) {
+      return res.status(400).json({ msg: 'El comprobante de este pedido ya fue verificado' })
+    }
+    // Validación adicional: el documento enviado debe coincidir con el del cliente del pedido
+    if (documento && String(documento).trim() !== String(pedido.cliente?.documento || '').trim()) {
+      return res.status(403).json({ msg: 'El documento no coincide con el del pedido' })
+    }
+
+    pedido.comprobantePago = {
+      ...pedido.comprobantePago?.toObject?.() ?? {},
+      url,
+      metodoPago: metodoPago || pedido.comprobantePago?.metodoPago || 'transferencia',
+      referencia,
+      fechaEnvio: fechaEnvio || new Date(),
+      verificado: false,
+      verificadoPor: undefined,
+      fechaVerificacion: undefined,
+      notasVerificacion: undefined,
+    }
+
+    pedido.historialEstados.push({
+      estado: 'pendiente',
+      nota: 'Comprobante de pago enviado por el cliente desde la landing — pendiente de verificación',
+    })
+
+    await pedido.save()
+    res.json({ ok: true, numero: pedido.numero, estado: pedido.estado })
+  } catch (err) {
+    res.status(400).json({ msg: 'Error al registrar comprobante', error: err.message })
+  }
+}
+
 export const verificarComprobante = async (req, res) => {
   const session = await mongoose.startSession()
   try {
