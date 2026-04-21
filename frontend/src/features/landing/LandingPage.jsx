@@ -200,13 +200,14 @@ export default function LandingPage() {
   const [pedidoCreado, setPedidoCreado] = useState(null)
   const [enviando,   setEnviando]   = useState(false)
   const [error,      setError]      = useState("")
-  // ── Estados para subir comprobante público ──
+  // ── Estados para subir comprobante en el paso 4 ──
   const [comprobanteFile,    setComprobanteFile]    = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState("")
   const [referenciaPago,     setReferenciaPago]     = useState("")
   const [subiendoComp,       setSubiendoComp]       = useState(false)
   const [compEnviado,        setCompEnviado]        = useState(false)
   const [errComp,            setErrComp]            = useState("")
+  const [dragActive,         setDragActive]         = useState(false)
   const [catActiva,  setCatActiva]  = useState("Todos")
   const [query,      setQuery]      = useState("")
   const [mobileMenu, setMobileMenu] = useState(false)
@@ -297,22 +298,28 @@ export default function LandingPage() {
     setCarrito([]); setForm(emptyForm); setFormErr({}); setMetodoPago("nequi")
     setPedidoCreado(null); setError(""); setStep(0); setCheckoutStep(1)
     setComprobanteFile(null); setComprobantePreview(""); setReferenciaPago("")
-    setCompEnviado(false); setErrComp(""); setSubiendoComp(false)
+    setCompEnviado(false); setErrComp(""); setSubiendoComp(false); setDragActive(false)
     window.scrollTo({top:0})
   }
 
-  /* ── Selección y preview del comprobante ── */
-  const onSelectComprobante = (e) => {
-    const f = e.target.files?.[0]
+  /* ── Selección/validación del archivo de comprobante (maneja input y DnD) ── */
+  const aceptarArchivo = (f) => {
     if (!f) return
-    if (!/^image\//.test(f.type)) { setErrComp("El archivo debe ser una imagen"); return }
+    if (!/^image\//.test(f.type)) { setErrComp("El archivo debe ser una imagen (JPG, PNG, WEBP)"); return }
     if (f.size > 5 * 1024 * 1024)  { setErrComp("La imagen debe pesar menos de 5MB"); return }
     setErrComp("")
     setComprobanteFile(f)
+    // Liberar preview anterior si existe
+    if (comprobantePreview) { try { URL.revokeObjectURL(comprobantePreview) } catch { /* noop */ } }
     setComprobantePreview(URL.createObjectURL(f))
   }
+  const onSelectComprobante = (e) => aceptarArchivo(e.target.files?.[0])
+  const onDropComprobante = (e) => {
+    e.preventDefault(); setDragActive(false)
+    aceptarArchivo(e.dataTransfer?.files?.[0])
+  }
 
-  /* ── Enviar comprobante al backend (registra en el pedido) ── */
+  /* ── Enviar comprobante al backend ── */
   const enviarComprobante = async () => {
     if (!pedidoCreado?._id) { setErrComp("No hay pedido asociado"); return }
     if (!comprobanteFile)   { setErrComp("Selecciona la imagen del comprobante"); return }
@@ -327,6 +334,11 @@ export default function LandingPage() {
         documento: form.documento.trim(),
       })
       setCompEnviado(true)
+      // Guardar último pedido confirmado
+      const numero = pedidoCreado?.numero || pedidoCreado?._id?.slice(-6)?.toUpperCase()
+      if (numero) {
+        try { localStorage.setItem("sa_ultimo_pedido", JSON.stringify({ numero, fecha: Date.now() })) } catch { /* noop */ }
+      }
     } catch (e) {
       setErrComp(e?.response?.data?.msg || e?.message || "No se pudo enviar el comprobante")
       console.error("[LandingPage] Error al enviar comprobante:", e?.response?.data || e)
@@ -335,15 +347,10 @@ export default function LandingPage() {
     }
   }
 
-  /* ── Mensaje pre-armado para WhatsApp del admin (incluye deep-link al pedido) ── */
-  const mensajeWhats = () => {
+  /* ── Mensaje pre-armado para WhatsApp (dudas del cliente, NO para pago) ── */
+  const mensajeWhatsDudas = () => {
     const numero = pedidoCreado?.numero || pedidoCreado?._id?.slice(-6)?.toUpperCase() || "—"
-    const items  = (carrito || [])
-      .filter(i => i?.producto)
-      .map(i => `• ${i.producto.nombre} x${i.cantidad}`)
-      .join("\n") || "—"
-    const deepLink = `${window.location.origin}/p/${encodeURIComponent(numero)}`
-    return `Hola Surti Antojos 👋\nQuiero confirmar mi pedido *#${numero}*.\n\n*Productos:*\n${items}\n\n*Total:* ${fmt(totalPrecio)}\n*Cliente:* ${form.nombre} ${form.apellido}\n*Documento:* ${form.documento}\n*Dirección:* ${form.direccion}, ${form.ciudad}\n*Método de pago:* ${metodoPago}\n${referenciaPago?`*Referencia:* ${referenciaPago}\n`:""}\n📎 *IMPORTANTE:* después de enviar este mensaje, adjunta aquí mismo en el chat la *foto de tu comprobante de pago* para que confirmemos tu pedido.\n\nDetalle del pedido: ${deepLink}\n¡Gracias!`
+    return `Hola Surti Antojos 👋\nTengo una consulta sobre mi pedido *#${numero}*.`
   }
 
   /* ── estilos base botones ── */
@@ -743,10 +750,9 @@ export default function LandingPage() {
             <p style={{fontFamily:T.font,fontSize:".82rem"}}>Prueba con otra categoría o búsqueda</p>
           </div>
         ) : (
-          <motion.div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:20}}
-            initial="h" whileInView="v" viewport={{once:true}} variants={{h:{},v:{transition:{staggerChildren:.04}}}}>
-            {prodsFilt.map(p=><ProductoCard key={p._id} producto={p}/>)}
-          </motion.div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:20}}>
+            {prodsFilt.map(p=>renderProductoCard(p))}
+          </div>
         )}
       </div>
 
@@ -768,16 +774,15 @@ export default function LandingPage() {
     </section>
   )
 
-  /* ── TARJETA PRODUCTO ── */
-  const ProductoCard = ({producto}) => {
+  /* ── TARJETA PRODUCTO (función pura, NO componente — evita remount al cambiar carrito) ── */
+  const renderProductoCard = (producto) => {
     const enCarrito = carrito.find(i=>i.producto._id===producto._id)
     const agotado   = producto.stock<=0
     const img       = resolveImg(producto)
     const pocStock  = producto.stock>0&&producto.stock<=5
 
     return (
-      <motion.div className="sa-card"
-        variants={{h:{opacity:0,y:20},v:{opacity:1,y:0,transition:{duration:.4}}}}
+      <div key={producto._id} className="sa-card"
         style={{borderRadius:16,background:"#fff",border:`1px solid ${T.line}`,overflow:"hidden",display:"flex",flexDirection:"column",willChange:"transform"}}>
 
         {/* imagen */}
@@ -863,7 +868,7 @@ export default function LandingPage() {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     )
   }
 
@@ -1529,93 +1534,124 @@ export default function LandingPage() {
 
   const renderPasoListo = () => {
     const numero = pedidoCreado?.numero || pedidoCreado?._id?.slice(-6)?.toUpperCase()
+    const metodoLabel = metodoPago==="nequi"?"Nequi":metodoPago==="daviplata"?"Daviplata":"Transferencia"
+
+    // ── Vista de éxito tras enviar el comprobante ─────────────────────────
+    if (compEnviado) {
+      return (
+        <motion.div key="pl-ok" initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} exit={{opacity:0}} transition={{type:"spring",stiffness:260,damping:24}}
+          style={{textAlign:"center",padding:"20px 0"}}>
+          <motion.div initial={{scale:0}} animate={{scale:1}} transition={{type:"spring",stiffness:200,delay:.1}}
+            style={{width:80,height:80,borderRadius:"50%",background:T.success,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px"}}>
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </motion.div>
+          <h2 style={{fontFamily:T.fontH,fontWeight:800,fontSize:"2.1rem",color:T.ink,marginBottom:10,letterSpacing:"-.025em"}}>¡Comprobante recibido!</h2>
+          <p style={{fontFamily:T.font,color:T.gray1,fontSize:".94rem",maxWidth:480,margin:"0 auto 28px",lineHeight:1.65}}>
+            Tu pedido <strong style={{color:T.o600,fontFamily:T.fontM}}>#{numero}</strong> está siendo verificado por nuestro equipo. Te contactaremos por WhatsApp cuando el pago sea aprobado.
+          </p>
+          <div style={{background:T.bg,borderRadius:16,padding:"22px 26px",marginBottom:24,textAlign:"left",maxWidth:480,margin:"0 auto 24px"}}>
+            <div style={{fontFamily:T.font,fontWeight:700,color:T.gray1,fontSize:".72rem",textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>Próximos pasos</div>
+            {["Verificamos tu comprobante (generalmente en menos de 30 min)","Te confirmamos por WhatsApp que el pago fue aprobado","Despachamos tu pedido según la zona de entrega"].map((t,i)=>(
+              <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:10}}>
+                <div style={{width:24,height:24,borderRadius:7,background:T.ink,color:"#fff",fontFamily:T.fontM,fontWeight:700,fontSize:".74rem",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
+                <span style={{fontFamily:T.font,fontSize:".84rem",color:T.ink2,lineHeight:1.55,paddingTop:2}}>{t}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={reiniciar} className="sa-btn-p" style={{...BP,padding:"14px 32px",fontSize:".92rem",cursor:"pointer"}}>
+            <span style={{display:"inline-flex",alignItems:"center",gap:8}}><span>Seguir comprando</span>{Icon.arrow}</span>
+          </button>
+        </motion.div>
+      )
+    }
+
+    // ── Vista principal: subir comprobante ────────────────────────────────
     return (
     <motion.div key="pl" initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} exit={{opacity:0}} transition={{type:"spring",stiffness:260,damping:24}}
-      style={{textAlign:"center",padding:"20px 0"}}>
-      <motion.div initial={{scale:0}} animate={{scale:1}} transition={{type:"spring",stiffness:200,delay:.1}}
-        style={{width:80,height:80,borderRadius:"50%",background:T.success,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px"}}>
-        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </motion.div>
-      <h2 style={{fontFamily:T.fontH,fontWeight:800,fontSize:"2.1rem",color:T.ink,marginBottom:10,letterSpacing:"-.025em"}}>¡Pedido confirmado!</h2>
-      <p style={{fontFamily:T.font,color:T.gray1,fontSize:".94rem",maxWidth:480,margin:"0 auto 28px",lineHeight:1.65}}>
-        Tu pedido <strong style={{color:T.o600,fontFamily:T.fontM}}>#{numero}</strong> fue registrado. Para completarlo, continúa la conversación por WhatsApp y envíanos el comprobante de pago.
-      </p>
+      style={{padding:"8px 0"}}>
+      <div style={{textAlign:"center",marginBottom:26}}>
+        <motion.div initial={{scale:0}} animate={{scale:1}} transition={{type:"spring",stiffness:200,delay:.1}}
+          style={{width:68,height:68,borderRadius:"50%",background:T.success,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </motion.div>
+        <h2 style={{fontFamily:T.fontH,fontWeight:800,fontSize:"1.75rem",color:T.ink,marginBottom:8,letterSpacing:"-.025em"}}>Pedido creado <span style={{color:T.o600,fontFamily:T.fontM}}>#{numero}</span></h2>
+        <p style={{fontFamily:T.font,color:T.gray1,fontSize:".9rem",maxWidth:520,margin:"0 auto",lineHeight:1.6}}>
+          Realiza el pago por <strong style={{color:T.ink}}>{metodoLabel}</strong> y sube aquí la foto del comprobante para confirmar y despachar tu pedido.
+        </p>
+      </div>
 
-      {/* ── CTA principal: elegir admin de WhatsApp ── */}
-      <div style={{maxWidth:480,margin:"0 auto 16px"}}>
-        <div style={{fontFamily:T.font,fontSize:".82rem",fontWeight:700,color:T.ink2,marginBottom:10,textAlign:"center",letterSpacing:".02em"}}>
-          ¿Con quién prefieres confirmar tu pedido?
+      {/* ── Datos de pago destacados ── */}
+      <div style={{maxWidth:520,margin:"0 auto 22px",background:"linear-gradient(135deg,#FFF4EC,#FFEDDB)",border:`1px solid #FED7AA`,borderRadius:16,padding:"18px 22px"}}>
+        <div style={{fontFamily:T.font,fontSize:".7rem",fontWeight:700,color:T.o600,textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Datos para tu pago</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+          <div>
+            <div style={{fontFamily:T.font,fontSize:".78rem",color:T.gray1}}>{metodoLabel} · Surti Antojos</div>
+            <div style={{fontFamily:T.fontM,fontSize:"1.15rem",fontWeight:800,color:T.ink,letterSpacing:"-.01em"}}>312 877 8843</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontFamily:T.font,fontSize:".72rem",color:T.gray1}}>Total a pagar</div>
+            <div style={{fontFamily:T.fontM,fontSize:"1.25rem",fontWeight:800,color:T.o600,letterSpacing:"-.01em"}}>{fmt(totalPrecio || pedidoCreado?.total || 0)}</div>
+          </div>
         </div>
-        <div style={{display:"grid",gap:10}}>
+      </div>
+
+      {/* ── Zona de drag & drop / input ── */}
+      <div style={{maxWidth:520,margin:"0 auto 16px"}}>
+        <label htmlFor="sa-comprobante-input"
+          onDragEnter={e=>{e.preventDefault();setDragActive(true)}}
+          onDragOver={e=>{e.preventDefault();setDragActive(true)}}
+          onDragLeave={()=>setDragActive(false)}
+          onDrop={onDropComprobante}
+          style={{display:"block",border:`2px dashed ${comprobantePreview?T.success:dragActive?T.o600:T.line}`,borderRadius:14,padding:comprobantePreview?14:"28px 18px",textAlign:"center",cursor:"pointer",background:comprobantePreview?"#F0FDF4":dragActive?"#FFF4EC":T.bg,transition:"all .2s"}}>
+          {comprobantePreview ? (
+            <div>
+              <img src={comprobantePreview} alt="comprobante" style={{maxWidth:"100%",maxHeight:240,borderRadius:10,marginBottom:10,objectFit:"contain",boxShadow:"0 2px 10px rgba(0,0,0,.08)"}}/>
+              <div style={{fontFamily:T.font,fontSize:".82rem",color:T.ink2,fontWeight:600}}>{comprobanteFile?.name}</div>
+              <div style={{fontFamily:T.font,fontSize:".74rem",color:T.gray1,marginTop:2}}>{((comprobanteFile?.size||0)/1024).toFixed(0)} KB · Toca o arrastra otra imagen para cambiar</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{width:52,height:52,borderRadius:14,background:"#fff",display:"inline-flex",alignItems:"center",justifyContent:"center",color:T.o600,boxShadow:"0 4px 14px rgba(240,90,26,.18)",marginBottom:12}}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div style={{fontFamily:T.font,fontWeight:700,color:T.ink,fontSize:".98rem",marginBottom:4}}>Arrastra aquí tu comprobante</div>
+              <div style={{fontFamily:T.font,fontSize:".82rem",color:T.gray1,marginBottom:2}}>o toca para seleccionar desde tu galería o cámara</div>
+              <div style={{fontFamily:T.font,fontSize:".72rem",color:T.gray1}}>JPG, PNG o WEBP · máx 5MB</div>
+            </div>
+          )}
+          <input id="sa-comprobante-input" type="file" accept="image/*" capture="environment" onChange={onSelectComprobante} style={{display:"none"}}/>
+        </label>
+
+        <input type="text" placeholder="Referencia / # de transacción (opcional)"
+          value={referenciaPago} onChange={e=>setReferenciaPago(e.target.value)}
+          style={{width:"100%",marginTop:12,padding:"13px 15px",border:`1.5px solid ${T.line}`,borderRadius:12,fontFamily:T.font,fontSize:".9rem",color:T.ink,outline:"none",boxSizing:"border-box",background:"#fff"}}
+        />
+
+        {errComp && <div style={{marginTop:12,background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"11px 14px",fontFamily:T.font,fontSize:".84rem",color:T.danger,fontWeight:600}}>⚠ {errComp}</div>}
+
+        <button onClick={enviarComprobante} disabled={subiendoComp||!comprobanteFile} className="sa-btn-p"
+          style={{...BP,width:"100%",marginTop:14,padding:"16px 28px",fontSize:".96rem",justifyContent:"center",opacity:(subiendoComp||!comprobanteFile)?.55:1,cursor:(subiendoComp||!comprobanteFile)?"not-allowed":"pointer"}}>
+          {subiendoComp ? (
+            <span style={{display:"inline-flex",alignItems:"center",gap:8}}><Spin/><span>Enviando comprobante...</span></span>
+          ) : (
+            <span style={{display:"inline-flex",alignItems:"center",gap:8}}>{Icon.check}<span>Enviar comprobante y finalizar</span></span>
+          )}
+        </button>
+      </div>
+
+      {/* ── Soporte: WhatsApp solo para dudas ── */}
+      <div style={{maxWidth:520,margin:"18px auto 0",paddingTop:18,borderTop:`1px dashed ${T.line}`,textAlign:"center"}}>
+        <div style={{fontFamily:T.font,fontSize:".8rem",color:T.gray1,marginBottom:10}}>¿Tienes dudas con el pago?</div>
+        <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           {ADMINS_WHATSAPP.map(admin => (
-            <a key={admin.id} href={buildWhatsAppLink(mensajeWhats(), admin.numero)} target="_blank" rel="noreferrer"
-              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,background:"#25D366",color:"#fff",padding:"16px 22px",borderRadius:14,textDecoration:"none",fontWeight:700,fontSize:".98rem",fontFamily:T.font,boxShadow:"0 6px 18px rgba(37,211,102,.28)",letterSpacing:"-.005em"}}>
+            <a key={admin.id} href={buildWhatsAppLink(mensajeWhatsDudas(), admin.numero)} target="_blank" rel="noreferrer"
+              style={{display:"inline-flex",alignItems:"center",gap:7,background:"#fff",border:`1.5px solid #25D366`,color:"#25D366",padding:"9px 16px",borderRadius:10,textDecoration:"none",fontWeight:700,fontSize:".82rem",fontFamily:T.font}}>
               <span style={{display:"inline-flex"}}>{Icon.whats}</span>
               <span>Escribir a {admin.nombre}</span>
             </a>
           ))}
         </div>
-        <div style={{marginTop:12,fontFamily:T.font,fontSize:".82rem",color:T.gray1,lineHeight:1.5,textAlign:"center"}}>
-          Se abrirá un chat con el resumen de tu pedido. Después de enviar el mensaje, <strong style={{color:T.ink}}>adjunta la foto de tu comprobante en el mismo chat 📎</strong> para confirmar.
-        </div>
       </div>
-
-      {/* ── Fallback discreto: subir aquí ── */}
-      {compEnviado ? (
-        <div style={{maxWidth:480,margin:"0 auto 24px",background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"12px 16px",fontFamily:T.font,fontSize:".86rem",color:"#15803D",fontWeight:600,display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>
-          <span style={{display:"inline-flex"}}>{Icon.check}</span>
-          <span>Comprobante adjuntado. Pendiente de verificación.</span>
-        </div>
-      ) : (
-        <details style={{maxWidth:480,margin:"0 auto 24px",textAlign:"left"}}>
-          <summary style={{cursor:"pointer",fontFamily:T.font,fontSize:".86rem",color:T.gray1,padding:"10px 14px",listStyle:"none",textAlign:"center"}}>
-            ¿Prefieres subir el comprobante aquí? <span style={{color:T.o600,fontWeight:700,textDecoration:"underline"}}>Adjuntar archivo</span>
-          </summary>
-          <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:12,padding:"18px 20px",marginTop:8}}>
-            <label htmlFor="sa-comprobante-input" style={{display:"block",border:`2px dashed ${comprobantePreview?T.success:T.line}`,borderRadius:12,padding:comprobantePreview?12:"18px 14px",textAlign:"center",cursor:"pointer",background:comprobantePreview?"#F0FDF4":T.bg,transition:"all .2s"}}>
-              {comprobantePreview ? (
-                <div>
-                  <img src={comprobantePreview} alt="comprobante" style={{maxWidth:"100%",maxHeight:160,borderRadius:8,marginBottom:8,objectFit:"contain"}}/>
-                  <div style={{fontFamily:T.font,fontSize:".78rem",color:T.gray1}}>{comprobanteFile?.name} · Toca para cambiar</div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{fontFamily:T.font,fontWeight:700,color:T.ink2,fontSize:".86rem",marginBottom:4}}>📎 Selecciona la imagen</div>
-                  <div style={{fontFamily:T.font,fontSize:".74rem",color:T.gray1}}>JPG, PNG o WEBP · máx 5MB</div>
-                </div>
-              )}
-              <input id="sa-comprobante-input" type="file" accept="image/*" onChange={onSelectComprobante} style={{display:"none"}}/>
-            </label>
-            <input type="text" placeholder="Referencia / # de transacción (opcional)"
-              value={referenciaPago} onChange={e=>setReferenciaPago(e.target.value)}
-              style={{width:"100%",marginTop:10,padding:"10px 13px",border:`1.5px solid ${T.line}`,borderRadius:10,fontFamily:T.font,fontSize:".86rem",color:T.ink,outline:"none",boxSizing:"border-box"}}
-            />
-            {errComp && <div style={{marginTop:10,background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 12px",fontFamily:T.font,fontSize:".82rem",color:T.danger,fontWeight:600}}>⚠ {errComp}</div>}
-            <button onClick={enviarComprobante} disabled={subiendoComp||!comprobanteFile} className="sa-btn-p"
-              style={{...BP,width:"100%",marginTop:12,justifyContent:"center",opacity:(subiendoComp||!comprobanteFile)?.6:1,cursor:(subiendoComp||!comprobanteFile)?"not-allowed":"pointer"}}>
-              {subiendoComp ? (
-                <span style={{display:"inline-flex",alignItems:"center",gap:8}}><Spin/><span>Enviando...</span></span>
-              ) : (
-                <span style={{display:"inline-flex",alignItems:"center",gap:8}}>{Icon.check}<span>Enviar comprobante</span></span>
-              )}
-            </button>
-          </div>
-        </details>
-      )}
-
-      <div style={{background:T.bg,borderRadius:16,padding:"22px 26px",marginBottom:24,textAlign:"left",maxWidth:480,margin:"0 auto 24px"}}>
-        <div style={{fontFamily:T.font,fontWeight:700,color:T.gray1,fontSize:".72rem",textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>Próximos pasos</div>
-        {[`Realiza tu pago por ${metodoPago==="nequi"?"Nequi":metodoPago==="daviplata"?"Daviplata":"Transferencia bancaria"}`,`Envía el comprobante por WhatsApp al administrador`,`Esperaremos a que el admin verifique tu pago`,`¡Confirmamos y despachamos tu pedido!`].map((t,i)=>(
-          <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:10}}>
-            <div style={{width:24,height:24,borderRadius:7,background:T.ink,color:"#fff",fontFamily:T.fontM,fontWeight:700,fontSize:".74rem",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
-            <span style={{fontFamily:T.font,fontSize:".84rem",color:T.ink2,lineHeight:1.55,paddingTop:2}}>{t}</span>
-          </div>
-        ))}
-      </div>
-
-      <button onClick={reiniciar} className="sa-btn-p" style={{...BP,padding:"14px 32px",fontSize:".92rem",cursor:"pointer"}}>
-        <span style={{display:"inline-flex",alignItems:"center",gap:8}}><span>Seguir comprando</span>{Icon.arrow}</span>
-      </button>
     </motion.div>
     )
   }
@@ -1750,16 +1786,6 @@ export default function LandingPage() {
     </footer>
   )
 
-  /* ── WhatsApp floating ── */
-  const WhatsFloat = () => step===0 && (
-    <a href="https://wa.me/573128778843" target="_blank" rel="noreferrer"
-      style={{position:"fixed",bottom:24,right:24,width:56,height:56,borderRadius:"50%",background:"#25D366",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",boxShadow:"0 12px 32px rgba(37,211,102,.45)",zIndex:700,transition:"transform .2s"}}
-      onMouseEnter={e=>e.currentTarget.style.transform="scale(1.08)"}
-      onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-      {Icon.whats}
-    </a>
-  )
-
   /* ══════════════════════════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════════════════════════ */
@@ -1785,7 +1811,6 @@ export default function LandingPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      <WhatsFloat/>
     </div>
   )
 }

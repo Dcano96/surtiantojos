@@ -91,6 +91,26 @@ const verificarComprobante = async (id, aprobado, notas) => {
   }
 }
 
+const getInboxPagos = async () => {
+  try {
+    const response = await api.get(`${API_URL}/inbox/pagos`)
+    return response.data?.data ?? []
+  } catch (error) {
+    console.error("Error al obtener inbox de pagos:", error)
+    return []
+  }
+}
+
+const getInboxPagosCount = async () => {
+  try {
+    const response = await api.get(`${API_URL}/inbox/pagos/count`)
+    return response.data?.count ?? 0
+  } catch (error) {
+    console.error("Error al obtener contador de pagos:", error)
+    return 0
+  }
+}
+
 const getDetalles = async (pedidoId) => {
   try {
     const response = await api.get(`${API_URL}/${pedidoId}/detalles`)
@@ -141,6 +161,8 @@ export default {
   uploadComprobante,
   registrarComprobante,
   verificarComprobante,
+  getInboxPagos,
+  getInboxPagosCount,
   getDetalles,
   agregarDetalle,
   actualizarDetalle,

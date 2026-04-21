@@ -93,6 +93,40 @@ export const getPedidos = async (req, res) => {
   }
 }
 
+// Inbox de pagos: pedidos en estado "pendiente" con comprobante cargado
+// y no verificado. Este es el endpoint que alimenta el módulo "Inbox de pagos"
+// del dashboard — el admin verifica/aprueba desde allí con 1 clic.
+export const getInboxPagos = async (req, res) => {
+  try {
+    const pedidos = await Pedido.find({
+      estado: 'pendiente',
+      'comprobantePago.url': { $exists: true, $ne: null, $ne: '' },
+      'comprobantePago.verificado': { $ne: true },
+    })
+      .populate('clienteId')
+      .populate('detalles')
+      .sort({ 'comprobantePago.fechaEnvio': -1, createdAt: -1 })
+    res.json({ data: pedidos, total: pedidos.length })
+  } catch (err) {
+    res.status(500).json({ msg: 'Error al obtener inbox de pagos', error: err.message })
+  }
+}
+
+// Contador rápido para el badge del sidebar. Devuelve solo el número de
+// pedidos con comprobante pendiente de verificación. No carga documentos.
+export const getInboxPagosCount = async (req, res) => {
+  try {
+    const count = await Pedido.countDocuments({
+      estado: 'pendiente',
+      'comprobantePago.url': { $exists: true, $ne: null, $ne: '' },
+      'comprobantePago.verificado': { $ne: true },
+    })
+    res.json({ count })
+  } catch (err) {
+    res.status(500).json({ msg: 'Error al contar inbox de pagos', error: err.message })
+  }
+}
+
 export const getPedido = async (req, res) => {
   try {
     const pedido = await Pedido.findById(req.params.id)

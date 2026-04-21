@@ -15,6 +15,8 @@ import {
   getPedidoPublico,
   marcarComprobanteWhatsapp,
   adminPublicComprobante,
+  getInboxPagos,
+  getInboxPagosCount,
 } from './pedido.controller.js'
 import {
   getDetallesPorPedido,
@@ -26,6 +28,9 @@ import {
 const router = Router()
 
 router.get('/', authMiddleware, getPedidos)
+// Inbox de pagos (debe ir ANTES de /:id para que no matchee como id)
+router.get('/inbox/pagos', authMiddleware, getInboxPagos)
+router.get('/inbox/pagos/count', authMiddleware, getInboxPagosCount)
 router.get('/:id', authMiddleware, getPedido)
 router.post('/', crearPedido)                   // público — landing crea pedidos sin token
 router.put('/:id', authMiddleware, actualizarPedido)

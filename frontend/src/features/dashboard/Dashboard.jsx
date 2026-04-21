@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Component } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
 import Swal from "sweetalert2"
@@ -7,19 +7,55 @@ import { RolesList } from "../roles"
 import { CategoriasList } from "../categorias"
 import { UsuariosList } from "../usuarios"
 import { ProductosList } from "../productos"
-import { PedidosList } from "../pedidos"
+import { PedidosList, InboxPagos } from "../pedidos"
+import pedidosService from "../pedidos/pedidos.service.js"
 import { ClientesList } from "../clientes"
 import { InventarioList } from "../inventario"
 import {
   LayoutDashboard, Package, Tag, ShoppingCart, Layers,
   Shield, Users, LogOut, ChevronLeft, ChevronRight,
   X, Menu, Bell, Search, TrendingUp, AlertCircle,
-  ChevronDown, User, ShoppingBag, BarChart2, UserCheck,
+  ChevronDown, User, ShoppingBag, BarChart2, UserCheck, Inbox,
 } from "lucide-react"
 
 // ─── API base ──────────────────────────────────────────────────
 const API = import.meta.env.VITE_API_URL || ""
 const url = (path) => API ? `${API}${path}` : path
+
+// ─── Error boundary para aislar módulos ────────────────────────
+class ModuleErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error) {
+    console.warn("Module render error:", error?.message)
+  }
+  componentDidUpdate(prevProps) {
+    if (prevProps.moduleKey !== this.props.moduleKey && this.state.hasError) {
+      this.setState({ hasError: false })
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font)", color: "var(--t2)" }}>
+          <p style={{ fontSize: 14 }}>El módulo tuvo un problema al renderizar.</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            style={{ marginTop: 12, padding: "8px 16px", borderRadius: 8, border: "1px solid var(--o1)", background: "#fff", color: "var(--o1)", cursor: "pointer", fontWeight: 600 }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )
+    }
+    return <div key={this.props.moduleKey}>{this.props.children}</div>
+  }
+}
 
 // ─── Inyectar estilos globales ─────────────────────────────────
 if (typeof document !== "undefined" && !document.getElementById("sa-dash-style")) {
@@ -593,6 +629,7 @@ const MOD_LABELS = {
   productos: "Productos",
   categorias: "Categorías",
   pedidos: "Pedidos",
+  inbox_pagos: "Inbox de pagos",
   inventario: "Inventario",
   clientes: "Clientes",
   roles: "Roles",
@@ -608,11 +645,12 @@ const NAV = [
   {
     sec: "Gestión",
     items: [
-      { id:"productos",   label:"Productos",   icon:Package      },
-      { id:"categorias",  label:"Categorías",  icon:Tag          },
-      { id:"pedidos",     label:"Pedidos",     icon:ShoppingCart },
-      { id:"clientes",    label:"Clientes",    icon:UserCheck    },
-      { id:"inventario",  label:"Inventario",  icon:Layers       },
+      { id:"productos",   label:"Productos",    icon:Package      },
+      { id:"categorias",  label:"Categorías",   icon:Tag          },
+      { id:"pedidos",     label:"Pedidos",      icon:ShoppingCart },
+      { id:"inbox_pagos", label:"Inbox pagos",  icon:Inbox        },
+      { id:"clientes",    label:"Clientes",     icon:UserCheck    },
+      { id:"inventario",  label:"Inventario",   icon:Layers       },
     ],
   },
   {
@@ -667,6 +705,7 @@ export default function Dashboard() {
     productos: null, pedidos: null, categorias: null, usuarios: null,
   })
   const [dashData,        setDashData]        = useState(null)
+  const [inboxCount,      setInboxCount]      = useState(0)
 
   const chartRefs = {
     ventas:     useRef(null),
@@ -734,6 +773,19 @@ export default function Dashboard() {
     window.addEventListener("popstate", h)
     return () => window.removeEventListener("popstate", h)
   }, [])
+
+  // ── Polling del contador del Inbox de pagos (badge del sidebar) ──
+  useEffect(() => {
+    if (!user) return
+    let cancelado = false
+    const refrescar = async () => {
+      const c = await pedidosService.getInboxPagosCount()
+      if (!cancelado) setInboxCount(c)
+    }
+    refrescar()
+    const id = setInterval(refrescar, 20000)
+    return () => { cancelado = true; clearInterval(id) }
+  }, [user, selectedModule])
 
   // ── Fetch KPIs ──
   useEffect(() => {
@@ -939,7 +991,10 @@ export default function Dashboard() {
       const p = (user?.permisos || []).find(p => p.modulo === "dashboard")
       return p ? p.acciones?.leer : false
     }
-    const perm = (user?.permisos || []).find(p => p.modulo === modulo)
+    // El inbox de pagos hereda los permisos del módulo "pedidos" (es una
+    // vista especializada de la misma entidad).
+    const modCheck = modulo === "inbox_pagos" ? "pedidos" : modulo
+    const perm = (user?.permisos || []).find(p => p.modulo === modCheck)
     return perm ? Object.values(perm.acciones || {}).some(v => v) : false
   }
 
@@ -1158,6 +1213,7 @@ export default function Dashboard() {
       case "productos":  return <ProductosList />
       case "categorias": return <CategoriasList />
       case "pedidos":    return <PedidosList />
+      case "inbox_pagos":return <InboxPagos />
       case "clientes":   return <ClientesList />
       case "inventario": return <InventarioList />
       case "reportes":   return placeholder("reportes")
@@ -1176,15 +1232,37 @@ export default function Dashboard() {
         <div className="sa-sec-lbl">{group.sec}</div>
         {visibleItems.map(item => {
           const Icon = item.icon
+          const badge = item.id === "inbox_pagos" ? inboxCount : 0
           return (
             <button
               key={item.id}
               className={`sa-nav-btn ${selectedModule === item.id ? "on" : ""}`}
               onClick={() => selectMod(item.id)}
               data-label={item.label}
+              style={{ position: "relative" }}
             >
-              <span className="sa-nav-ico"><Icon size={15}/></span>
+              <span className="sa-nav-ico" style={{ position: "relative" }}>
+                <Icon size={15}/>
+                {badge > 0 && (
+                  <span style={{
+                    position: "absolute", top: -6, right: -8,
+                    minWidth: 16, height: 16, padding: "0 4px",
+                    borderRadius: 99, background: "#EF4444", color: "#fff",
+                    fontFamily: "var(--font)", fontSize: 10, fontWeight: 800,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 2px 6px rgba(239,68,68,.5)",
+                    border: "1.5px solid #fff",
+                  }}>{badge > 99 ? "99+" : badge}</span>
+                )}
+              </span>
               <span className="sa-nav-txt">{item.label}</span>
+              {badge > 0 && (
+                <span style={{
+                  marginLeft: "auto", background: "#FEE2E2", color: "#B91C1C",
+                  fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 99,
+                  fontFamily: "var(--font)",
+                }}>{badge > 99 ? "99+" : badge}</span>
+              )}
             </button>
           )
         })}
@@ -1296,9 +1374,9 @@ export default function Dashboard() {
           </header>
 
           <main className="sa-content">
-            <div key={selectedModule}>
+            <ModuleErrorBoundary moduleKey={selectedModule}>
               {renderContent()}
-            </div>
+            </ModuleErrorBoundary>
           </main>
         </div>
       </div>
