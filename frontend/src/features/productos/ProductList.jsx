@@ -738,14 +738,14 @@ const ProductosList = () => {
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
       <Dialog key={editingId || "new"} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
         fullWidth maxWidth="sm"
-        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(12px)", background: "rgba(15,23,42,.20)" } }}
+        sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.35)" } }}
         slotProps={{ paper: { sx: {
           borderRadius: "22px !important",
           boxShadow: "0 30px 70px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.1) !important",
           border: "1px solid rgba(255,255,255,0.15)",
           width: "90%", maxWidth: 560,
-          background: "rgba(255,255,255,0.96) !important",
-          backdropFilter: "blur(20px) saturate(180%)", overflow: "hidden",
+          background: "#FFFFFF !important",
+          overflow: "hidden",
         } } }}>
 
         <DlgHdr
@@ -765,7 +765,7 @@ const ProductosList = () => {
             helperText={formErrors.nombre || "Nombre del producto"}
             required
             inputProps={{ maxLength: 80 }}
-            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><Package size={14} color={T.t3} /></InputAdornment> } }}
           />
 
@@ -776,7 +776,7 @@ const ProductosList = () => {
             multiline rows={2}
             inputProps={{ maxLength: 300 }}
             helperText={`${(formData.descripcion || "").length}/300 caracteres`}
-            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ alignSelf: "flex-start", mt: "10px" }}><FileText size={14} color={T.t3} /></InputAdornment> } }}
           />
 
@@ -784,7 +784,7 @@ const ProductosList = () => {
             value={formData.categoria} onChange={handleChange}
             fullWidth variant="outlined" size="small" required
             helperText="Solo se muestran categorías activas"
-            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+            sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><Layers size={14} color={T.t3} /></InputAdornment> } }}
           >
             <MenuItem value="" disabled>Selecciona una categoría</MenuItem>
@@ -799,7 +799,7 @@ const ProductosList = () => {
               error={!!formErrors.precio}
               helperText={formErrors.precio || "Precio en pesos"}
               inputProps={{ min: 0, step: 100 }}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><DollarSign size={14} color={T.t3} /></InputAdornment> } }}
             />
             {/* Stock inicial solo en creación — en edición se gestiona desde inventario */}
@@ -812,7 +812,7 @@ const ProductosList = () => {
                   error={!!formErrors.stockInicial}
                   helperText={formErrors.stockInicial || "Unidades con las que inicia"}
                   inputProps={{ min: 0, step: 1 }}
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
                   slotProps={{ input: { startAdornment: <InputAdornment position="start"><Package size={14} color={T.t3} /></InputAdornment> } }}
                 />
               ) : (
@@ -832,14 +832,14 @@ const ProductosList = () => {
               variant="outlined" size="small"
               helperText="Alerta cuando el stock baje de este nivel"
               inputProps={{ min: 0, step: 1 }}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><AlertTriangle size={14} color={T.t3} /></InputAdornment> } }}
             />
             <TextField select margin="dense" label="Unidad de medida" name="unidadMedida"
               value={formData.unidadMedida} onChange={handleChange}
               variant="outlined" size="small"
               helperText="Tipo de unidad del producto"
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)" } }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem", background: "#fff" } }}
             >
               {["unidad", "paquete", "caja", "bolsa", "litro", "kilogramo", "gramo", "otro"].map(u => (
                 <MenuItem key={u} value={u} sx={{ fontFamily: T.font, textTransform: "capitalize" }}>{u}</MenuItem>
@@ -920,14 +920,14 @@ const ProductosList = () => {
       {/* ═══ MODAL DETALLE ═══ */}
       <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)}
         fullWidth maxWidth="sm"
-        sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(12px)", background: "rgba(15,23,42,.20)" } }}
+        sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.35)" } }}
         slotProps={{ paper: { sx: {
           borderRadius: "22px !important",
           boxShadow: "0 30px 70px rgba(0,0,0,0.18) !important",
           border: "1px solid rgba(255,255,255,0.15)",
           width: "90%", maxWidth: 560,
-          background: "rgba(255,255,255,0.96) !important",
-          backdropFilter: "blur(20px) saturate(180%)", overflow: "hidden",
+          background: "#FFFFFF !important",
+          overflow: "hidden",
         } } }}>
 
         <DlgHdr
@@ -964,7 +964,7 @@ const ProductosList = () => {
               ].map((field, i) => (
                 <Box key={i} sx={{
                   borderRadius: "14px", p: "14px 18px",
-                  background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)",
+                  background: "#FAFAFA",
                   border: "1px solid rgba(0,0,0,0.04)",
                   boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 2px rgba(255,255,255,0.6)",
                 }}>

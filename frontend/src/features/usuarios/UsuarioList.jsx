@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useCallback, useMemo, memo } from "react"
+import { motion } from "framer-motion"
 import {
   Typography, TextField, Button, Dialog, DialogContent, DialogActions,
   MenuItem, Box, InputAdornment, Divider, Tooltip, Switch, FormControlLabel,
@@ -17,8 +17,8 @@ import api from "../../services/api.js"
    ADMIN PROTEGIDO
    ═══════════════════════════════════════════════════════════════ */
 const ADMIN_DOC  = "1152458310"
-const ADMIN_NAME = "David Andres Goez Cano"
-const isAdminUser = u => u?.documento === ADMIN_DOC && u?.nombre === ADMIN_NAME
+const ADMIN_EMAIL = "dgoez2020@gmail.com"
+const isAdminUser = u => u?.documento === ADMIN_DOC || u?.email?.toLowerCase() === ADMIN_EMAIL
 
 /* ═══════════════════════════════════════════════════════════════
    VALIDACIONES
@@ -52,7 +52,7 @@ const T = {
   border2: "rgba(255,107,53,0.22)",
   glass: "rgba(255,255,255,0.55)",
   glass2: "rgba(255,255,255,0.72)",
-  blur: "blur(40px) saturate(180%)",
+  blur: "blur(18px) saturate(160%)",
   neu: "0 8px 32px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9)",
   neuHover: "0 20px 50px rgba(0,0,0,0.09), inset 0 1px 0 rgba(255,255,255,0.95)",
   glow: "0 6px 24px rgba(255,107,53,0.30)",
@@ -192,14 +192,14 @@ const switchSx = {
 const fieldSx = {
   "& .MuiOutlinedInput-root": {
     borderRadius: "14px", fontFamily: T.font, fontSize: ".86rem",
-    background: "#fff", backdropFilter: "blur(12px)",
+    background: "#fff",
   },
 }
 
 /* ═══════════════════════════════════════════════════════════════
    3D DECORATIVE ELEMENTS
    ═══════════════════════════════════════════════════════════════ */
-const UserIcon3D = () => (
+const UserIcon3D = memo(() => (
   <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ filter: "drop-shadow(0 8px 20px rgba(255,107,53,0.35))" }}>
     <defs>
       <linearGradient id="us3d" x1="8" y1="4" x2="56" y2="60">
@@ -218,24 +218,19 @@ const UserIcon3D = () => (
     <circle cx="32" cy="26" r="8" stroke="#fff" strokeWidth="2.5" fill="none" opacity="0.95" />
     <path d="M18 46c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.95" />
   </svg>
-)
+))
 
-const GlassOrb = ({ size, top, left, right, bottom, color = "rgba(255,140,80,0.5)", delay = 0, dur = 10, anim = "sa-float1" }) => (
+const GlassOrb = memo(({ size, top, left, right, bottom, color = "rgba(255,140,80,0.5)", delay = 0, dur = 10, anim = "sa-float1" }) => (
   <Box sx={{
     position: "fixed", width: size, height: size, borderRadius: "50%",
     background: `radial-gradient(circle at 30% 25%, rgba(255,255,255,0.5) 0%, ${color} 45%, rgba(200,60,0,0.15) 100%)`,
-    boxShadow: `0 ${size * 0.12}px ${size * 0.4}px ${color.replace(/[\d.]+\)$/, "0.2)")}, inset 0 -${size * 0.06}px ${size * 0.12}px rgba(0,0,0,0.08), inset 0 ${size * 0.1}px ${size * 0.15}px rgba(255,255,255,0.5)`,
     top, left, right, bottom, zIndex: -1, pointerEvents: "none",
+    willChange: "transform",
     animation: `${anim} ${dur}s ease-in-out ${delay}s infinite`,
-    "&::before": {
-      content: '""', position: "absolute", top: "10%", left: "20%", width: "30%", height: "22%",
-      borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 70%)",
-      transform: "rotate(-20deg)",
-    },
   }} />
-)
+))
 
-const PieChart3D = ({ total, active, inactive }) => {
+const PieChart3D = memo(({ total, active, inactive }) => {
   const t = total || 1
   const activeDeg = (active / t) * 360
   const inactiveDeg = (inactive / t) * 360
@@ -267,9 +262,9 @@ const PieChart3D = ({ total, active, inactive }) => {
       <Box sx={{ position: "absolute", bottom: 12, right: 5, width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.5), rgba(245,158,11,0.5))", boxShadow: "0 2px 6px rgba(245,158,11,0.2)", animation: "sa-float3 6s ease-in-out 1s infinite" }} />
     </Box>
   )
-}
+})
 
-const EmptyIllustration = () => (
+const EmptyIllustration = memo(() => (
   <Box sx={{ position: "relative", width: 240, height: 200, mx: "auto", mb: 3 }}>
     <Box sx={{ position: "absolute", left: 22, top: 28, width: 88, height: 105, borderRadius: "16px", background: "rgba(255,255,255,0.7)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.5)", boxShadow: "0 8px 32px rgba(0,0,0,0.06)", transform: "rotate(-10deg)" }}>
       <Box sx={{ p: "12px 10px" }}>
@@ -301,7 +296,173 @@ const EmptyIllustration = () => (
     <GlassOrb size={12} top={6} right={32} color="rgba(255,107,53,0.4)" delay={0} dur={5} anim="sa-float1" />
     <GlassOrb size={8} top={18} left={3} color="rgba(34,197,94,0.4)" delay={0.8} dur={4} anim="sa-float2" />
   </Box>
-)
+))
+
+/* ═══════════════════════════════════════════════════════════════
+   FORM BODY (memoized — aislado del resto de la página)
+   ═══════════════════════════════════════════════════════════════ */
+const UsuarioFormBody = memo(({
+  formData, formErrors, editingId, roles, showPassword,
+  isAdminLocked, handleChange, validateField, setShowPassword,
+}) => (
+  <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
+    <Box sx={{
+      display: "flex", alignItems: "center", gap: "10px",
+      fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
+      color: T.t1, mb: "14px", pb: "10px",
+      borderBottom: "1.5px solid rgba(0,0,0,0.05)",
+    }}>
+      <Box sx={{
+        width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(255,107,53,.08)", boxShadow: "0 3px 8px rgba(255,107,53,0.08)",
+      }}>
+        <User size={13} color={T.o1} />
+      </Box>
+      Información Personal
+    </Box>
+
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
+      <TextField margin="dense" label="Nombre completo" name="nombre"
+        value={formData.nombre} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small" required
+        autoComplete="off"
+        error={!!formErrors.nombre} helperText={formErrors.nombre}
+        inputProps={{ maxLength: 50 }} sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><User size={14} color={T.t3} /></InputAdornment> } }}
+      />
+      <TextField margin="dense" label="Documento" name="documento"
+        value={formData.documento} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small" required
+        autoComplete="off"
+        error={!!formErrors.documento} helperText={formErrors.documento}
+        inputProps={{ maxLength: 15 }} sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><FileText size={14} color={T.t3} /></InputAdornment> } }}
+      />
+    </Box>
+
+    <Box sx={{
+      display: "flex", alignItems: "center", gap: "10px",
+      fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
+      color: T.t1, mb: "14px", pb: "10px",
+      borderBottom: "1.5px solid rgba(0,0,0,0.05)",
+    }}>
+      <Box sx={{
+        width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(34,197,94,.08)", boxShadow: "0 2px 8px rgba(34,197,94,0.06)",
+      }}>
+        <Mail size={13} color={T.green} />
+      </Box>
+      Contacto
+    </Box>
+
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
+      <TextField margin="dense" label="Email" name="email"
+        value={formData.email} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small" required
+        autoComplete="off"
+        error={!!formErrors.email} helperText={formErrors.email}
+        sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><Mail size={14} color={T.t3} /></InputAdornment> } }}
+      />
+      <TextField margin="dense" label="Teléfono" name="telefono"
+        value={formData.telefono} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small"
+        autoComplete="off"
+        error={!!formErrors.telefono} helperText={formErrors.telefono}
+        inputProps={{ maxLength: 15 }} sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><Phone size={14} color={T.t3} /></InputAdornment> } }}
+      />
+    </Box>
+
+    <Box sx={{
+      display: "flex", alignItems: "center", gap: "10px",
+      fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
+      color: T.t1, mb: "14px", pb: "10px",
+      borderBottom: "1.5px solid rgba(0,0,0,0.05)",
+    }}>
+      <Box sx={{
+        width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(99,102,241,.08)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)",
+      }}>
+        <Lock size={13} color="#6366F1" />
+      </Box>
+      Seguridad & Rol
+    </Box>
+
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
+      <TextField margin="dense" label={editingId ? "Nueva contraseña (opcional)" : "Contraseña"} name="password"
+        type={showPassword ? "text" : "password"}
+        value={formData.password} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small"
+        required={!editingId}
+        autoComplete="new-password"
+        disabled={isAdminLocked}
+        error={!!formErrors.password} helperText={formErrors.password || (isAdminLocked ? "No se puede cambiar la contraseña del administrador" : (editingId ? "Dejar vacío para mantener" : V.password.msg))}
+        sx={fieldSx}
+        slotProps={{ input: {
+          startAdornment: <InputAdornment position="start"><Lock size={14} color={T.t3} /></InputAdornment>,
+          endAdornment: <InputAdornment position="end">
+            <Box sx={{ cursor: "pointer", color: T.t3, display: "flex" }} onClick={() => setShowPassword(s => !s)}>
+              <Eye size={14} />
+            </Box>
+          </InputAdornment>,
+        } }}
+      />
+      <TextField margin="dense" label="Confirmar contraseña" name="confirmarPassword"
+        type={showPassword ? "text" : "password"}
+        value={formData.confirmarPassword} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small"
+        required={!editingId}
+        autoComplete="new-password"
+        disabled={isAdminLocked}
+        error={!!formErrors.confirmarPassword} helperText={formErrors.confirmarPassword}
+        sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><Key size={14} color={T.t3} /></InputAdornment> } }}
+      />
+    </Box>
+
+    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 1 }}>
+      <TextField select margin="dense" label="Rol" name="rol"
+        value={formData.rol} onChange={handleChange}
+        onBlur={e => validateField(e.target.name, e.target.value)}
+        fullWidth variant="outlined" size="small" required={!editingId}
+        autoComplete="off"
+        error={!!formErrors.rol} helperText={formErrors.rol}
+        disabled={isAdminLocked}
+        sx={fieldSx}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><Shield size={14} color={T.t3} /></InputAdornment> } }}
+      >
+        <MenuItem value="">
+          <em>{editingId ? "Sin rol" : "Seleccionar rol"}</em>
+        </MenuItem>
+        {roles.map(r => (
+          <MenuItem key={r._id} value={r.nombre}>{r.nombre}</MenuItem>
+        ))}
+      </TextField>
+
+      <Box sx={{ display: "flex", alignItems: "center", pt: 1 }}>
+        <FormControlLabel
+          control={
+            <Switch checked={formData.estado} onChange={handleChange} name="estado" size="small" sx={switchSx}
+              disabled={isAdminLocked}
+            />
+          }
+          label={
+            <Typography sx={{ fontFamily: T.font, fontSize: ".86rem", fontWeight: 600, color: T.t2 }}>
+              {formData.estado ? "Activo" : "Inactivo"}
+            </Typography>
+          }
+        />
+      </Box>
+    </Box>
+  </DialogContent>
+))
 
 /* ═══════════════════════════════════════════════════════════════
    FRAMER MOTION VARIANTS
@@ -310,6 +471,35 @@ const MotionBox = motion.create(Box)
 const containerV = { hidden: {}, visible: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }
 const itemV = { hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }
 const scaleV = { hidden: { opacity: 0, scale: 0.93 }, visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 260, damping: 22 } } }
+
+/* ═══════════════════════════════════════════════════════════════
+   DIALOG HEADER (memoized — evita recrear el árbol en cada render)
+   ═══════════════════════════════════════════════════════════════ */
+const DlgHdr = memo(({ icon, title, sub, onClose }) => (
+  <Box sx={{
+    background: T.go, p: "22px 28px", display: "flex", alignItems: "center", gap: "16px",
+    position: "relative", overflow: "hidden",
+  }}>
+    <Box sx={{ position: "absolute", top: -15, right: 25, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.07)", animation: "sa-float1 8s ease-in-out infinite" }} />
+    <Box sx={{ position: "absolute", bottom: -10, right: 90, width: 35, height: 35, borderRadius: "50%", background: "rgba(255,255,255,0.05)", animation: "sa-float2 6s ease-in-out 1s infinite" }} />
+    <Box sx={{ position: "absolute", top: 8, left: "40%", width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.04)", animation: "sa-float3 7s ease-in-out 0.5s infinite" }} />
+    <Box sx={{
+      width: 44, height: 44, borderRadius: "14px", background: "rgba(255,255,255,.18)",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      backdropFilter: "blur(12px)", boxShadow: "inset 0 1px 2px rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.1)",
+    }}>{icon}</Box>
+    <Box sx={{ flex: 1, zIndex: 1 }}>
+      <Typography sx={{ fontFamily: `${T.fontH} !important`, fontWeight: "800 !important", fontSize: "1.12rem !important", color: "#fff !important", lineHeight: 1.2 }}>{title}</Typography>
+      <Typography sx={{ fontSize: ".76rem", color: "rgba(255,255,255,.65)", mt: "4px", fontFamily: T.font }}>{sub}</Typography>
+    </Box>
+    <button style={{
+      width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.15)",
+      backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,.12)",
+      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", flexShrink: 0, transition: "all .25s",
+    }} onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
+  </Box>
+))
 
 /* ═══════════════════════════════════════════════════════════════
    COMPONENT
@@ -328,7 +518,6 @@ const UsuariosList = () => {
   const emptyForm = { nombre: "", documento: "", email: "", telefono: "", password: "", confirmarPassword: "", rol: "", estado: true }
   const [formData, setFormData] = useState(emptyForm)
   const [formErrors, setFormErrors] = useState({})
-  const [isFormValid, setIsFormValid] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   /* ─── Fetch data ─── */
@@ -348,7 +537,7 @@ const UsuariosList = () => {
   useEffect(() => { fetchUsuarios(); fetchRoles() }, [])
 
   /* ─── Validation helpers ─── */
-  const validateField = (name, value) => {
+  const validateField = useCallback((name, value) => {
     let err = ""
     if (name === "nombre") {
       if (!value?.trim()) err = "El nombre es obligatorio"
@@ -378,24 +567,22 @@ const UsuariosList = () => {
     }
     setFormErrors(prev => ({ ...prev, [name]: err }))
     return !err
-  }
+  }, [editingId, formData.password])
 
-  const validateForm = (data) => {
-    const d = data || formData
-    const requiredFields = ["nombre", "documento", "email"]
-    if (!editingId) requiredFields.push("password", "confirmarPassword", "rol")
-    const valid = requiredFields.every(f => {
-      const v = d[f]
+  const isFormValid = useMemo(() => {
+    if (editingId) return true
+    const requiredFields = ["nombre", "documento", "email", "password", "confirmarPassword", "rol"]
+    return requiredFields.every(f => {
+      const v = formData[f]
       if (!v || !String(v).trim()) return false
       if (f === "nombre" && (!REGEX.nombre.test(v) || v.length < V.nombre.min)) return false
       if (f === "documento" && (!REGEX.documento.test(v) || v.length < V.documento.min)) return false
       if (f === "email" && !REGEX.email.test(v)) return false
       if (f === "password" && !REGEX.password.test(v)) return false
-      if (f === "confirmarPassword" && v !== d.password) return false
+      if (f === "confirmarPassword" && v !== formData.password) return false
       return true
     })
-    setIsFormValid(valid)
-  }
+  }, [formData, editingId])
 
   /* ─── Handlers ─── */
   const handleOpen = (user) => {
@@ -407,29 +594,25 @@ const UsuariosList = () => {
         rol: user.rol || "", estado: user.estado,
       })
       setEditingId(user._id)
-      setIsFormValid(true)
     } else {
       setFormData(emptyForm)
       setEditingId(null)
-      setIsFormValid(false)
     }
     setOpen(true)
     setShowPassword(false)
   }
   const handleClose = () => {
-    setOpen(false); setEditingId(null); setFormData(emptyForm); setFormErrors({}); setIsFormValid(false)
+    setOpen(false); setEditingId(null); setFormData(emptyForm); setFormErrors({})
   }
   const handleDetails = user => { setSelectedUser(user); setDetailsOpen(true) }
   const handleCloseDetails = () => setDetailsOpen(false)
 
-  const handleChange = e => {
+  const handleChange = useCallback(e => {
     const { name, value, checked } = e.target
     const v = name === "estado" ? checked : value
-    const next = { ...formData, [name]: v }
-    setFormData(next)
-    validateField(name, v)
-    setTimeout(() => validateForm(next), 0)
-  }
+    setFormData(prev => ({ ...prev, [name]: v }))
+    setFormErrors(prev => (prev[name] ? { ...prev, [name]: "" } : prev))
+  }, [])
 
   const handleSubmit = async () => {
     const fields = ["nombre", "documento", "email", "rol"]
@@ -470,6 +653,10 @@ const UsuariosList = () => {
           }
           if (!payload.rol) {
             await swalFire({ icon: "error", title: "Acción no permitida", text: "No se puede quitar el rol al usuario administrador." })
+            return
+          }
+          if (payload.password) {
+            await swalFire({ icon: "error", title: "Acción no permitida", text: "No se puede cambiar la contraseña del usuario administrador." })
             return
           }
         }
@@ -541,45 +728,27 @@ const UsuariosList = () => {
 
   /* ─── Helpers ─── */
   const getInitials = name => name?.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2) || "?"
-  const totalActive = usuarios.filter(u => u.estado).length
-  const totalInactive = usuarios.filter(u => !u.estado).length
-  const withRol = usuarios.filter(u => u.rol && u.rol !== "").length
-  const filtered = usuarios.filter(u =>
-    u.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.documento?.includes(searchTerm)
-  )
-  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+  const { totalActive, totalInactive, withRol } = useMemo(() => ({
+    totalActive: usuarios.filter(u => u.estado).length,
+    totalInactive: usuarios.filter(u => !u.estado).length,
+    withRol: usuarios.filter(u => u.rol && u.rol !== "").length,
+  }), [usuarios])
+  const filtered = useMemo(() => {
+    const s = searchTerm.toLowerCase()
+    return usuarios.filter(u =>
+      u.nombre?.toLowerCase().includes(s) ||
+      u.email?.toLowerCase().includes(s) ||
+      u.documento?.includes(searchTerm)
+    )
+  }, [usuarios, searchTerm])
+  const paginated = useMemo(() => filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage), [filtered, page, rowsPerPage])
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage))
+  const isAdminLocked = useMemo(
+    () => !!(editingId && isAdminUser(usuarios.find(u => u._id === editingId))),
+    [editingId, usuarios]
+  )
   const pctRegistered = usuarios.length > 0 ? 100 : 0
   const pctActive = usuarios.length > 0 ? Math.round((totalActive / usuarios.length) * 100) : 0
-
-  /* ─── Dialog Header ─── */
-  const DlgHdr = ({ icon, title, sub, onClose }) => (
-    <Box sx={{
-      background: T.go, p: "22px 28px", display: "flex", alignItems: "center", gap: "16px",
-      position: "relative", overflow: "hidden",
-    }}>
-      <Box sx={{ position: "absolute", top: -15, right: 25, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.07)", animation: "sa-float1 8s ease-in-out infinite" }} />
-      <Box sx={{ position: "absolute", bottom: -10, right: 90, width: 35, height: 35, borderRadius: "50%", background: "rgba(255,255,255,0.05)", animation: "sa-float2 6s ease-in-out 1s infinite" }} />
-      <Box sx={{ position: "absolute", top: 8, left: "40%", width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.04)", animation: "sa-float3 7s ease-in-out 0.5s infinite" }} />
-      <Box sx={{
-        width: 44, height: 44, borderRadius: "14px", background: "rgba(255,255,255,.18)",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        backdropFilter: "blur(12px)", boxShadow: "inset 0 1px 2px rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.1)",
-      }}>{icon}</Box>
-      <Box sx={{ flex: 1, zIndex: 1 }}>
-        <Typography sx={{ fontFamily: `${T.fontH} !important`, fontWeight: "800 !important", fontSize: "1.12rem !important", color: "#fff !important", lineHeight: 1.2 }}>{title}</Typography>
-        <Typography sx={{ fontSize: ".76rem", color: "rgba(255,255,255,.65)", mt: "4px", fontFamily: T.font }}>{sub}</Typography>
-      </Box>
-      <button style={{
-        width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.15)",
-        backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,.12)",
-        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", flexShrink: 0, transition: "all .25s",
-      }} onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
-    </Box>
-  )
 
   /* ══════════════════════════════════════════════════════════════
      RENDER — Warm Glassmorphism 3D
@@ -600,12 +769,8 @@ const UsuariosList = () => {
       {/* ═══ FLOATING 3D GLASS ORBS ═══ */}
       <GlassOrb size={75} top="3%" left="6%" color="rgba(255,107,53,0.18)" delay={0} dur={14} anim="sa-float1" />
       <GlassOrb size={45} top="12%" right="10%" color="rgba(255,143,94,0.15)" delay={2} dur={11} anim="sa-float2" />
-      <GlassOrb size={28} top="25%" right="25%" color="rgba(255,107,53,0.12)" delay={0.5} dur={9} anim="sa-float3" />
       <GlassOrb size={55} bottom="18%" left="4%" color="rgba(255,80,20,0.14)" delay={3} dur={13} anim="sa-float2" />
-      <GlassOrb size={20} top="8%" left="45%" color="rgba(255,160,100,0.12)" delay={1.5} dur={8} anim="sa-float3" />
       <GlassOrb size={35} bottom="30%" right="6%" color="rgba(255,107,53,0.10)" delay={4} dur={12} anim="sa-float1" />
-      <GlassOrb size={16} top="40%" left="15%" color="rgba(34,197,94,0.12)" delay={2.5} dur={10} anim="sa-float2" />
-      <GlassOrb size={22} bottom="10%" right="35%" color="rgba(245,158,11,0.10)" delay={1} dur={9} anim="sa-float3" />
 
       {/* ═══ HERO HEADER ═══ */}
       <MotionBox variants={scaleV} initial="hidden" animate="visible" sx={{
@@ -750,22 +915,19 @@ const UsuariosList = () => {
           </Box>
         )}
 
-        <AnimatePresence mode="wait">
-          <MotionBox variants={containerV} initial="hidden" animate="visible" sx={{ display: "flex", flexDirection: "column", gap: "8px", p: paginated.length > 0 ? "0 8px 8px" : "0" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: "8px", p: paginated.length > 0 ? "0 8px 8px" : "0" }}>
             {paginated.map((user, i) => {
               const admin = isAdminUser(user)
               return (
-                <MotionBox key={user._id} variants={itemV}
-                  whileHover={{ y: -3, boxShadow: "0 16px 48px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.95)" }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                <Box key={user._id}
                   sx={{
                     display: "grid", gridTemplateColumns: "2fr 1.2fr 2fr 1fr 1fr 1fr 160px",
                     alignItems: "center", p: "18px 22px", borderRadius: "18px",
-                    background: "rgba(255,255,255,0.68)", backdropFilter: "blur(24px) saturate(180%)",
+                    background: "rgba(255,255,255,0.78)",
                     border: "1px solid rgba(255,255,255,0.55)",
                     boxShadow: "0 4px 20px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
-                    cursor: "default", transition: "background .3s, border-color .3s",
-                    "&:hover": { borderColor: "rgba(255,107,53,0.12)", background: "rgba(255,255,255,0.82)" },
+                    cursor: "default", transition: "background .2s, border-color .2s, transform .2s",
+                    "&:hover": { borderColor: "rgba(255,107,53,0.12)", background: "rgba(255,255,255,0.92)", transform: "translateY(-2px)" },
                   }}>
 
                   {/* Nombre + Avatar */}
@@ -868,11 +1030,10 @@ const UsuariosList = () => {
                       </Tooltip>
                     )}
                   </Box>
-                </MotionBox>
+                </Box>
               )
             })}
-          </MotionBox>
-        </AnimatePresence>
+          </Box>
 
         {/* Empty state */}
         {paginated.length === 0 && (
@@ -937,15 +1098,14 @@ const UsuariosList = () => {
       {/* ═══ MODAL CREAR / EDITAR ═══ */}
       <Dialog key={editingId || '__create__'} open={open} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleClose() }}
             fullWidth maxWidth="sm"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.35)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: "90%", maxWidth: 580,
-              background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)", overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
+              background: "#ffffff !important",
+              overflow: "hidden",
             } } }}>
 
             <DlgHdr
@@ -955,164 +1115,17 @@ const UsuariosList = () => {
               onClose={handleClose}
             />
 
-            <DialogContent sx={{ p: "22px 26px 12px !important", background: "transparent" }}>
-              {/* ─── Información Personal ─── */}
-              <Box sx={{
-                display: "flex", alignItems: "center", gap: "10px",
-                fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
-                color: T.t1, mb: "14px", pb: "10px",
-                borderBottom: "1.5px solid rgba(0,0,0,0.05)",
-              }}>
-                <Box sx={{
-                  width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(255,107,53,.08)", boxShadow: "0 3px 8px rgba(255,107,53,0.08)",
-                }}>
-                  <User size={13} color={T.o1} />
-                </Box>
-                Información Personal
-              </Box>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
-                <TextField margin="dense" label="Nombre completo" name="nombre"
-                  value={formData.nombre} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small" required
-                  autoComplete="off"
-                  error={!!formErrors.nombre} helperText={formErrors.nombre}
-                  inputProps={{ maxLength: 50 }} sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><User size={14} color={T.t3} /></InputAdornment> } }}
-                />
-                <TextField margin="dense" label="Documento" name="documento"
-                  value={formData.documento} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small" required
-                  autoComplete="off"
-                  error={!!formErrors.documento} helperText={formErrors.documento}
-                  inputProps={{ maxLength: 15 }} sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><FileText size={14} color={T.t3} /></InputAdornment> } }}
-                />
-              </Box>
-
-              {/* ─── Contacto ─── */}
-              <Box sx={{
-                display: "flex", alignItems: "center", gap: "10px",
-                fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
-                color: T.t1, mb: "14px", pb: "10px",
-                borderBottom: "1.5px solid rgba(0,0,0,0.05)",
-              }}>
-                <Box sx={{
-                  width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(34,197,94,.08)", boxShadow: "0 2px 8px rgba(34,197,94,0.06)",
-                }}>
-                  <Mail size={13} color={T.green} />
-                </Box>
-                Contacto
-              </Box>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
-                <TextField margin="dense" label="Email" name="email"
-                  value={formData.email} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small" required
-                  autoComplete="off"
-                  error={!!formErrors.email} helperText={formErrors.email}
-                  sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Mail size={14} color={T.t3} /></InputAdornment> } }}
-                />
-                <TextField margin="dense" label="Teléfono" name="telefono"
-                  value={formData.telefono} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small"
-                  autoComplete="off"
-                  error={!!formErrors.telefono} helperText={formErrors.telefono}
-                  inputProps={{ maxLength: 15 }} sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Phone size={14} color={T.t3} /></InputAdornment> } }}
-                />
-              </Box>
-
-              {/* ─── Seguridad & Rol ─── */}
-              <Box sx={{
-                display: "flex", alignItems: "center", gap: "10px",
-                fontFamily: T.font, fontSize: ".82rem", fontWeight: 700,
-                color: T.t1, mb: "14px", pb: "10px",
-                borderBottom: "1.5px solid rgba(0,0,0,0.05)",
-              }}>
-                <Box sx={{
-                  width: 30, height: 30, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(99,102,241,.08)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)",
-                }}>
-                  <Lock size={13} color="#6366F1" />
-                </Box>
-                Seguridad & Rol
-              </Box>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 2 }}>
-                <TextField margin="dense" label={editingId ? "Nueva contraseña (opcional)" : "Contraseña"} name="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small"
-                  required={!editingId}
-                  autoComplete="new-password"
-                  error={!!formErrors.password} helperText={formErrors.password || (editingId ? "Dejar vacío para mantener" : V.password.msg)}
-                  sx={fieldSx}
-                  slotProps={{ input: {
-                    startAdornment: <InputAdornment position="start"><Lock size={14} color={T.t3} /></InputAdornment>,
-                    endAdornment: <InputAdornment position="end">
-                      <Box sx={{ cursor: "pointer", color: T.t3, display: "flex" }} onClick={() => setShowPassword(!showPassword)}>
-                        <Eye size={14} />
-                      </Box>
-                    </InputAdornment>,
-                  } }}
-                />
-                <TextField margin="dense" label="Confirmar contraseña" name="confirmarPassword"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.confirmarPassword} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small"
-                  required={!editingId}
-                  autoComplete="new-password"
-                  error={!!formErrors.confirmarPassword} helperText={formErrors.confirmarPassword}
-                  sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Key size={14} color={T.t3} /></InputAdornment> } }}
-                />
-              </Box>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", mb: 1 }}>
-                <TextField select margin="dense" label="Rol" name="rol"
-                  value={formData.rol} onChange={handleChange}
-                  onBlur={e => validateField(e.target.name, e.target.value)}
-                  fullWidth variant="outlined" size="small" required={!editingId}
-                  autoComplete="off"
-                  error={!!formErrors.rol} helperText={formErrors.rol}
-                  disabled={editingId && isAdminUser(usuarios.find(u => u._id === editingId))}
-                  sx={fieldSx}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><Shield size={14} color={T.t3} /></InputAdornment> } }}
-                >
-                  <MenuItem value="">
-                    <em>{editingId ? "Sin rol" : "Seleccionar rol"}</em>
-                  </MenuItem>
-                  {roles.map(r => (
-                    <MenuItem key={r._id} value={r.nombre}>{r.nombre}</MenuItem>
-                  ))}
-                </TextField>
-
-                <Box sx={{ display: "flex", alignItems: "center", pt: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch checked={formData.estado} onChange={handleChange} name="estado" size="small" sx={switchSx}
-                        disabled={editingId && isAdminUser(usuarios.find(u => u._id === editingId))}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontFamily: T.font, fontSize: ".86rem", fontWeight: 600, color: T.t2 }}>
-                        {formData.estado ? "Activo" : "Inactivo"}
-                      </Typography>
-                    }
-                  />
-                </Box>
-              </Box>
-            </DialogContent>
+            <UsuarioFormBody
+              formData={formData}
+              formErrors={formErrors}
+              editingId={editingId}
+              roles={roles}
+              showPassword={showPassword}
+              isAdminLocked={isAdminLocked}
+              handleChange={handleChange}
+              validateField={validateField}
+              setShowPassword={setShowPassword}
+            />
 
             <DialogActions sx={{
               p: "14px 26px 22px !important", background: "transparent",
@@ -1130,15 +1143,14 @@ const UsuariosList = () => {
       {/* ═══ MODAL DETALLES ═══ */}
       <Dialog open={detailsOpen} onClose={(_, r) => { if (r !== "backdropClick" && r !== "escapeKeyDown") handleCloseDetails() }}
             fullWidth maxWidth="sm"
-            sx={{ "& .MuiBackdrop-root": { backdropFilter: "blur(14px)", background: "rgba(15,23,42,.15)" } }}
+            sx={{ "& .MuiBackdrop-root": { background: "rgba(15,23,42,.35)" } }}
             slotProps={{ paper: { sx: {
               borderRadius: "24px !important",
               boxShadow: "0 32px 80px rgba(0,0,0,0.16), 0 0 0 1px rgba(255,255,255,0.15) !important",
               border: "1px solid rgba(255,255,255,0.20)",
               width: 600, maxWidth: "96vw",
-              background: "rgba(255,255,255,0.92) !important",
-              backdropFilter: "blur(32px) saturate(200%)", overflow: "hidden",
-              animation: "sa-border-glow 3s ease-in-out infinite",
+              background: "#ffffff !important",
+              overflow: "hidden",
             } } }}>
 
             <DlgHdr icon={<Eye size={18} color="#fff" />} title="Detalles del Usuario" sub="Información completa del usuario" onClose={handleCloseDetails} />

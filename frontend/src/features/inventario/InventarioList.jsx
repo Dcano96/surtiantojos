@@ -664,14 +664,32 @@ const TabStock = () => {
                     "&:hover": { borderColor: "rgba(255,107,53,0.12)", background: "rgba(255,255,255,0.82)" },
                   }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                    <Box sx={{
-                      width: 44, height: 44, borderRadius: "14px",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, background: cfg.bg,
-                      boxShadow: `0 6px 16px ${cfg.color}22, inset 0 1px 2px rgba(255,255,255,0.8)`,
-                    }}>
-                      <Package size={19} color={cfg.color} />
-                    </Box>
+                    {p.imagen ? (
+                      <Box sx={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
+                        <Box component="img" src={p.imagen} alt={p.nombre} sx={{
+                          width: 44, height: 44, borderRadius: "14px", objectFit: "cover",
+                          boxShadow: `0 6px 16px ${cfg.color}22, inset 0 1px 2px rgba(255,255,255,0.8)`,
+                          border: "2px solid rgba(255,255,255,0.85)",
+                        }} onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex" }} />
+                        <Box sx={{
+                          position: "absolute", inset: 0, width: 44, height: 44, borderRadius: "14px",
+                          display: "none", alignItems: "center", justifyContent: "center",
+                          background: cfg.bg,
+                          boxShadow: `0 6px 16px ${cfg.color}22, inset 0 1px 2px rgba(255,255,255,0.8)`,
+                        }}>
+                          <Package size={19} color={cfg.color} />
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box sx={{
+                        width: 44, height: 44, borderRadius: "14px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, background: cfg.bg,
+                        boxShadow: `0 6px 16px ${cfg.color}22, inset 0 1px 2px rgba(255,255,255,0.8)`,
+                      }}>
+                        <Package size={19} color={cfg.color} />
+                      </Box>
+                    )}
                     <Box>
                       <Typography sx={{ fontFamily: T.font, fontWeight: 700, fontSize: ".90rem", color: T.t1, lineHeight: 1.3 }}>
                         {p.nombre}
